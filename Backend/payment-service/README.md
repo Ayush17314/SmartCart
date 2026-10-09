@@ -1,49 +1,32 @@
-# SmartCart Payment Service
+# Payment Service
 
-Node.js, Express, and MongoDB microservice for recording a payment and its lifecycle. It includes idempotent payment creation, payment history, an audit trail, refund records, request IDs, and signed gateway-webhook support. It deliberately does **not** collect card numbers.
+The payment service uses Razorpay Orders and Standard Checkout. SmartCart creates the Razorpay order on the server, sends only the public key and order details to the browser, verifies the Checkout signature on the server, and confirms the payment status with Razorpay before marking it successful.
 
-## Run
+## Configure test mode
 
-1. Copy `.env.example` to `.env` and set `MONGO_URI`.
-2. Start MongoDB.
-3. Run `npm run dev` (or `npm start`).
+1. Copy `Backend/.env.example` to `Backend/.env`.
+2. Add your Razorpay **test mode** Key ID and Key Secret from the Razorpay Dashboard. Keep the secret out of the frontend and source control.
+3. Set a unique `RAZORPAY_WEBHOOK_SECRET` in the Dashboard webhook configuration and the same value in `Backend/.env`.
+4. From `Backend`, run `docker compose up --build`.
+5. In the Razorpay Dashboard, configure the webhook URL as `https://<your-public-api-host>/api/payments/webhook` and subscribe to `payment.captured` and `payment.failed`.
 
-## API
+For local webhook development, expose the gateway with a secure HTTPS tunnel and use its public URL in the Dashboard. Razorpay sends a signature in `X-Razorpay-Signature`; the service verifies it against the raw request body.
 
-Base URL: `http://localhost:5004/api/payments`
+## Checkout flow
 
-| Method | Endpoint | Purpose |
+The frontend submits an order. The order service asks this service to create the payment using an `Idempotency-Key`. For UPI or card, this service creates a Razorpay Order and returns the public Checkout fields. The browser opens Razorpay Checkout and submits the returned payment ID, order ID, and signature to the server. The server checks the signature against the stored Razorpay order ID, fetches the payment from Razorpay, and only marks it `SUCCESS` after capture. The payment status is then synced to the order service. Webhooks provide an additional status update path.
+
+Cash on delivery skips Razorpay Checkout. Amounts are supplied in rupees by the order service and converted to paise for Razorpay. `PAYMENT_CURRENCY` defaults to `INR`.
+
+## Routes
+
+| Method | Route | Purpose |
 | --- | --- | --- |
-| `POST` | `/create` | Create a pending payment |
-| `POST` | `/verify/:paymentId` | Mark a pending payment successful or failed (development simulation) |
-| `POST` | `/webhook` | Process a signed gateway payment result |
-| `GET` | `/order/:orderId` | Get the payment for an order |
-| `GET` | `/user/:userId?page=1&limit=10&status=SUCCESS` | Get paginated payment history |
-| `POST` | `/refund/:paymentId` | Refund a successful payment |
+| `POST` | `/api/payments/create` | Create or retrieve an idempotent Razorpay order; requires `Idempotency-Key` and a bearer token |
+| `POST` | `/api/payments/verify/:paymentId` | Verify Razorpay Checkout response; requires a bearer token |
+| `POST` | `/api/payments/webhook` | Accept signed Razorpay `payment.captured` and `payment.failed` events |
+| `GET` | `/api/payments/order/:orderId` | Retrieve a payment belonging to the authenticated user |
+| `GET` | `/api/payments/user` | List the authenticated user’s payments |
+| `POST` | `/api/payments/refund/:paymentId` | Submit a full refund to Razorpay |
 
-Create request body:
-
-```json
-{
-  "orderId": "order-1001",
-  "userId": "user-2001",
-  "amount": 1299.5,
-  "paymentMethod": "UPI"
-}
-```
-
-Verify request body:
-
-```json
-{ "success": true }
-```
-
-Payment states: `PENDING` → `SUCCESS` or `FAILED`; only `SUCCESS` can become `REFUNDED`.
-
-## Reliability and gateway integration
-
-Send an `Idempotency-Key` header with every `POST /create`. Retrying the exact same request returns the original payment instead of creating another charge.
-
-For production, have the payment provider call `POST /webhook` with `{ "paymentId": "...", "success": true }`. Sign the exact JSON request body with HMAC-SHA256 using `WEBHOOK_SECRET`, then send the hex signature in `X-Payment-Signature`. The service verifies the signature before changing payment status.
-
-`POST /verify/:paymentId` is only a local-development simulation; protect or remove it when a real provider is connected.
+Use Razorpay test keys and test payment details first. Switch to live keys only after verifying the full flow and configuring the live webhook. This service does not store card numbers. Configure Razorpay capture settings so payments are captured automatically; an authorized but uncaptured payment remains pending in SmartCart.

@@ -1,0 +1,12 @@
+require("dotenv").config();
+const express=require("express"),mongoose=require("mongoose"),cors=require("cors"),jwt=require("jsonwebtoken");
+const app=express();app.use(cors({origin:(process.env.CORS_ORIGIN||"http://localhost:3000").split(",").map(x=>x.trim()),credentials:true}));app.use(express.json({limit:"100kb"}));app.use((q,s,n)=>{if(q.method==="GET")s.set("Cache-Control",q.path==="/health"?"no-store":"private, no-cache");n()});const S=mongoose.Schema;
+const Model=(name,schema)=>mongoose.models[name]||mongoose.model(name,new S(schema,{timestamps:true}));
+const reply=(res,data,status=200)=>res.status(status).json({success:true,data});
+const error=(res,e)=>res.status(e.status||500).json({success:false,message:e.status?e.message:"Internal server error"});
+const auth=(q,s,n)=>{try{q.user=jwt.verify((q.headers.authorization||"").replace(/^Bearer /,""),process.env.JWT_SECRET);n()}catch{s.status(401).json({success:false,message:"Authentication required"})}};
+const admin=(q,s,n)=>q.user.role==="admin"?n():s.status(403).json({success:false,message:"Admin access required"});
+app.get("/health",(q,s)=>s.json({service:"wishlist-service",status:"OK"}));
+const Wishlist=Model("Wishlist",{userId:{type:String,unique:true},products:[String]});app.use("/api/wishlist",auth);app.get("/api/wishlist",async(q,s)=>reply(s,await Wishlist.findOne({userId:q.user.userId})||{products:[]}));app.post("/api/wishlist/:productId",async(q,s)=>{try{await require("axios").get(`${process.env.PRODUCT_SERVICE_URL||"http://localhost:4002"}/api/products/${q.params.productId}`);reply(s,await Wishlist.findOneAndUpdate({userId:q.user.userId},{$addToSet:{products:q.params.productId}},{new:true,upsert:true}),201)}catch(e){error(s,e)}});app.delete("/api/wishlist/:productId",auth,async(q,s)=>reply(s,await Wishlist.findOneAndUpdate({userId:q.user.userId},{$pull:{products:q.params.productId}},{new:true})));
+app.use((e,q,s,next)=>{if(e instanceof SyntaxError)return s.status(400).json({success:false,message:"Invalid JSON"});error(s,e)});
+const port=Number(process.env.PORT)||4004;mongoose.connect(process.env.MONGODB_URI||process.env.MONGO_URI||"mongodb://127.0.0.1:27017",{dbName:process.env.MONGODB_DB||"smartcart_wishlist"}).then(()=>app.listen(port,()=>console.log("wishlist-service listening on "+port))).catch(e=>{console.error("MongoDB connection failed",e.message);process.exit(1)});

@@ -4,11 +4,12 @@ const paymentSchema = new mongoose.Schema({
     orderId: { type: String, required: true, trim: true, unique: true },
     userId: { type: String, required: true, trim: true },
     amount: { type: Number, required: true, min: 0.01 },
+    currency: { type: String, default: "INR", uppercase: true, minlength: 3, maxlength: 3 },
     paymentMethod: { type: String, enum: ["UPI", "CARD", "COD"], required: true, uppercase: true },
     transactionId: { type: String, default: null },
     idempotencyKey: { type: String, default: null, select: false },
     gateway: {
-        provider: { type: String, default: "MOCK" },
+        provider: { type: String, default: "RAZORPAY" },
         paymentIntentId: { type: String, default: null },
         reference: { type: String, default: null }
     },
@@ -22,6 +23,13 @@ const paymentSchema = new mongoose.Schema({
         createdAt: { type: Date, default: Date.now }
     }]
 }, { timestamps: true });
+
+paymentSchema.set("toJSON", {
+    transform: (document, output) => {
+        delete output.idempotencyKey;
+        return output;
+    },
+});
 
 paymentSchema.index({ userId: 1, createdAt: -1 });
 paymentSchema.index(

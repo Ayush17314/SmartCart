@@ -4,8 +4,11 @@ const crypto = require("crypto");
 const paymentRoutes = require("./routes/payment.routes");
 
 const app = express();
-
-app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : true }));
+app.disable("x-powered-by");
+app.use(cors({
+    origin: (process.env.CORS_ORIGIN || "http://localhost:3000").split(",").map((value) => value.trim()),
+    credentials: true,
+}));
 app.use((req, res, next) => {
     req.requestId = req.get("X-Request-Id") || crypto.randomUUID();
     res.set("X-Request-Id", req.requestId);
@@ -13,28 +16,20 @@ app.use((req, res, next) => {
 });
 app.use(express.json({
     limit: "100kb",
-    verify: (req, res, buffer) => {
-        req.rawBody = buffer;
-    }
+    verify: (req, res, buffer) => { req.rawBody = buffer; },
 }));
-
-app.get("/health", (req, res) => {
-    res.status(200).json({ success: true, service: "payment-service" });
+app.use((req, res, next) => {
+    if (req.method === "GET") res.set("Cache-Control", req.path === "/health" ? "no-store" : "private, no-cache");
+    next();
 });
 
+app.get("/health", (req, res) => res.status(200).json({ success: true, data: { service: "payment-service" } }));
 app.use("/api/payments", paymentRoutes);
-
-app.use((req, res) => {
-    res.status(404).json({ success: false, message: "Route not found" });
-});
-
+app.use((req, res) => res.status(404).json({ success: false, message: "Route not found", requestId: req.requestId }));
 app.use((error, req, res, next) => {
-    if (error instanceof SyntaxError && "body" in error) {
-        return res.status(400).json({ success: false, message: "Invalid JSON body" });
-    }
-
-    console.error(error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    const status = error.statusCode || (error instanceof SyntaxError ? 400 : 500);
+    console.error(JSON.stringify({ level: "error", service: "payment-service", requestId: req.requestId, message: error.message, status }));
+    res.status(status).json({ success: false, message: status >= 500 ? "Internal server error" : error.message, requestId: req.requestId });
 });
 
 module.exports = app;

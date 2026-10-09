@@ -1,0 +1,478 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R] /Count 8 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 3487 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Backend checklist, explained) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg 42 560 520 112 re f
+0.420 0.840 0.790 rg BT /F2 12 Tf 62.0 635.0 Td (SMARTCART) Tj ET
+1.000 1.000 1.000 rg BT /F2 21 Tf 62.0 596.0 Td (What is in place, how it works,) Tj ET
+1.000 1.000 1.000 rg BT /F2 21 Tf 62.0 570.0 Td (and where it helps the project) Tj ET
+0.120 0.180 0.270 rg BT /F1 11 Tf 46.0 528.0 Td (A practical tour of the backend checklist: what each item does, where SmartCart) Tj ET
+0.120 0.180 0.270 rg BT /F1 11 Tf 46.0 512.0 Td (implements it, why it is useful, and a compact code example. The examples are excerpts;) Tj ET
+0.120 0.180 0.270 rg BT /F1 11 Tf 46.0 496.0 Td (use the linked paths \(relative to Backend/\) to see the full implementation.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 475.0 Td (Coverage at a glance) Tj ET
+0.020 0.480 0.480 rg 474 471 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 476.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 452.0 Td (Of the 26 requested checklist items: 20 are implemented, 5 are partial, and 1 is pending.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 438.0 Td (Partial means the capability exists but has a stated scope or compatibility limitation. The) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 424.0 Td (internet deployment item remains pending because this workspace contains local Docker) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 410.0 Td (configuration, not a live hosted deployment.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 391.0 Td (How to read the labels) Tj ET
+0.020 0.480 0.480 rg 474 387 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 392.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 368.0 Td (IMPLEMENTED means the behavior exists in code and, where appropriate, is covered by the) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 354.0 Td (current gateway tests. PARTIAL means it exists with a meaningful limitation described here.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 340.0 Td (PENDING means the checklist outcome is not present yet.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 321.0 Td (Project map) Tj ET
+0.020 0.480 0.480 rg 474 317 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 322.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 298.0 Td (The API gateway is the public entry point for REST, GraphQL, validation, throttling,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 284.0 Td (idempotency, and upstream resilience. Product, order, payment, and other services own their) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 270.0 Td (domain logic. MongoDB stores application documents; MySQL stores gateway idempotency and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 256.0 Td (audit records. Docker Compose connects the local services.) Tj ET
+0.340 0.410 0.500 rg BT /F1 9 Tf 46.0 237.0 Td (Status reflects the source in this workspace; it does not imply production hosting, live) Tj ET
+0.340 0.410 0.500 rg BT /F1 9 Tf 46.0 223.0 Td (third-party credentials, or a production-scale distributed setup.) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (1) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 4917 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (HTTP API behavior) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (HTTP methods, /v1, resource URLs) Tj ET
+0.800 0.480 0.100 rg 474 678 94 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (PARTIAL) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (The gateway exposes version-prefixed aliases such as /v1/api/products while retaining the) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (existing /api routes for compatibility. The public URLs are mostly resource-shaped. One adapter) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (maps a few public resource-style actions \(for example, PATCH .../cancellation\) to older internal) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (service paths and methods, so method semantics are not uniformly owned by every service. See) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 603.0 Td (api-gateway/src/app.js.) Tj ET
+0.930 0.970 0.970 rg 46 525 520 64 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 574.0 Td (app.use\(\(req, res, next\) => {) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 562.0 Td (  req.apiPath = req.path.replace\(/^\\/v1\(?=\\/api\\/\)/, ""\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 550.0 Td (  next\(\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 538.0 Td (}\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 512.0 Td (Idempotency keys on POST) Tj ET
+0.020 0.480 0.480 rg 474 508 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 513.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 489.0 Td (For selected create operations \(products, orders, cart items, payment creation, returns, and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 475.0 Td (refunds\), the gateway requires an Idempotency-Key. It remembers the first response, replays) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 461.0 Td (matching retries, rejects a reused key with a changed payload \(409\), and reports an in-progress) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 447.0 Td (duplicate \(409\). This helps clients retry after a dropped response without accidentally creating) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 433.0 Td (duplicates. It is not applied to every POST, such as login or webhooks.) Tj ET
+0.930 0.970 0.970 rg 46 355 520 64 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 404.0 Td (await pool.execute\() Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 392.0 Td (  "INSERT INTO api_idempotency \(...\) VALUES \(?,?,?,?\)",) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 380.0 Td (  [scope, key, route, method]) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 368.0 Td (\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 342.0 Td (AJV JSON Schema validation) Tj ET
+0.020 0.480 0.480 rg 474 338 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 343.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 319.0 Td (The gateway compiles JSON Schemas with AJV and checks selected request bodies before forwarding) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 305.0 Td (them. Invalid product, order, cart, payment, registration, or login input gets rejected early) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 291.0 Td (with a 400 response. This protects service code from malformed requests; domain rules still) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 277.0 Td (belong in the owning service. See api-gateway/src/schemas.js and app.js.) Tj ET
+0.930 0.970 0.970 rg 46 211 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 248.0 Td (const ajv = new Ajv\({ allErrors: true }\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 236.0 Td (const validate = ajv.compile\(schemas.productCreate\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 224.0 Td (if \(!validate\(req.body\)\) return next\(badRequest\(validate.errors\)\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 198.0 Td (Eight or more status codes) Tj ET
+0.020 0.480 0.480 rg 474 194 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 199.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 175.0 Td (The API uses distinct outcomes including 200, 201, 400, 401, 403, 404, 409, 429, 500, 503, and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 161.0 Td (504. Status codes let clients distinguish validation, authentication, conflicts, throttling, and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 147.0 Td (service failures. Gateway tests explicitly exercise common statuses; individual codes also) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 133.0 Td (depend on the request and service outcome.) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (2) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 4918 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Representations, caching, and paging) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (ETag and conditional 304) Tj ET
+0.020 0.480 0.480 rg 474 678 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (Express generates entity tags for eligible responses, and the gateway forwards If-None-Match) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (upstream and preserves ETag on the way back. A matching conditional GET can return 304 Not) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (Modified, allowing clients to reuse their cached copy. The gateway Supertest suite checks this) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (path. See api-gateway/src/app.js and tests/api.test.js.) Tj ET
+0.930 0.970 0.970 rg 46 563 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 588.0 Td (headers: { "if-none-match": req.get\("If-None-Match"\) || "" }) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 576.0 Td (// After the upstream response: preserve ETag; end on 304.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 550.0 Td (JSON and XML negotiation) Tj ET
+0.800 0.480 0.100 rg 474 546 94 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 551.0 Td (PARTIAL) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 527.0 Td (Product list, category, and detail GET routes inspect Accept and return JSON or XML; Vary:) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 513.0 Td (Accept keeps caches from mixing the representations. Other service resources are not all) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 499.0 Td (XML-enabled, so this is a product API capability rather than universal negotiation. See) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 485.0 Td (product-service/src/server.js.) Tj ET
+0.930 0.970 0.970 rg 46 407 520 64 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 456.0 Td (res.vary\("Accept"\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 444.0 Td (if \(req.accepts\(["json", "xml"]\) === "xml"\) {) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 432.0 Td (  return res.type\("application/xml"\).send\(asXml\(body\)\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 420.0 Td (}) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 394.0 Td (Cursor pagination with a next link) Tj ET
+0.020 0.480 0.480 rg 474 390 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 395.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 371.0 Td (Product and order lists encode the last row's creation time and ID into a cursor. The next) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 357.0 Td (request uses after=<cursor>; the response includes pagination.nextCursor, links.next, and a Link) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 343.0 Td (header. This supports stable sequential browsing without large page offsets. Product cursor mode) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 329.0 Td (uses the default newest-first ordering; offset pagination remains available. See) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 315.0 Td (product-service/src/server.js and order-service/src/server.js.) Tj ET
+0.930 0.970 0.970 rg 46 249 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 286.0 Td (if \(next\) res.set\("Link", `<${next}>; rel="next"`\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 274.0 Td (return res.json\({ data: items, links: { next },) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 262.0 Td (  pagination: { nextCursor } }\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 236.0 Td (Cache-Control on GET) Tj ET
+0.020 0.480 0.480 rg 474 232 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 237.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 213.0 Td (The gateway sets private, no-cache by default for GET and HEAD; health endpoints use no-store.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 199.0 Td (The product service sets public, max-age=30, must-revalidate for its GET/HEAD responses.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 185.0 Td (Explicit policy avoids accidental long-lived caching of account data while allowing short-lived) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 171.0 Td (caching of catalog data. Check each route's final headers when adding a new service.) Tj ET
+0.930 0.970 0.970 rg 46 117 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 142.0 Td (if \(req.method === "GET" || req.method === "HEAD"\)) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 130.0 Td (  res.set\("Cache-Control", "public, max-age=30, must-revalidate"\);) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (3) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 4931 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Errors, traffic, and API discovery) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (One consistent error body) Tj ET
+0.800 0.480 0.100 rg 474 678 94 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (PARTIAL) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (Gateway-generated errors use { success: false, message, requestId }, and upstream non-success) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (responses are normalized to that shape at the gateway. Several services still format their own) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (errors differently when accessed directly, and not every route is guaranteed to pass through the) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (gateway. Treat the gateway as the consistent public boundary; service-wide unification remains) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 603.0 Td (follow-up work. See api-gateway/src/app.js.) Tj ET
+0.930 0.970 0.970 rg 46 537 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 574.0 Td (res.status\(status\).json\({ success: false,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 562.0 Td (  message: status >= 500 ? "Internal server error" : error.message,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 550.0 Td (  requestId: req.requestId }\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 524.0 Td (Rate-limit headers and 429) Tj ET
+0.020 0.480 0.480 rg 474 520 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 525.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 501.0 Td (express-rate-limit applies a configurable per-process request limit to API routes and emits) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 487.0 Td (standard rate-limit headers. Once a client exceeds the window, it receives 429. This gives) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 473.0 Td (clients a signal to slow down. Because counters live in each process, multiple gateway replicas) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 459.0 Td (do not yet share one global quota. See api-gateway/src/app.js.) Tj ET
+0.930 0.970 0.970 rg 46 393 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 430.0 Td (rateLimit\({ windowMs: 60_000, limit: 120,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 418.0 Td (  standardHeaders: true, legacyHeaders: false,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 406.0 Td (  handler: \(req, res\) => res.status\(429\).json\(errorBody\) }\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 380.0 Td (Hand-written OpenAPI and Swagger UI) Tj ET
+0.020 0.480 0.480 rg 474 376 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 381.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 357.0 Td (The API description is maintained as source code in api-gateway/src/openapi.js rather than) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 343.0 Td (generated from routes. The gateway serves it at /openapi.json and hosts Swagger UI at /docs.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 329.0 Td (This makes the contract inspectable and provides an interactive way for developers to explore) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 315.0 Td (documented endpoints.) Tj ET
+0.930 0.970 0.970 rg 46 249 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 286.0 Td (const swaggerDocument = require\("./openapi"\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 274.0 Td (app.get\("/openapi.json", ...\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 262.0 Td (app.use\("/docs", swaggerUi.serve, swaggerUi.setup\(swaggerDocument\)\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 236.0 Td (GraphQL alongside REST) Tj ET
+0.020 0.480 0.480 rg 474 232 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 237.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 213.0 Td (The gateway also exposes /graphql with a products query supporting first, after, search, and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 199.0 Td (category. Its resolver calls the product service and returns a connection-like list and next) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 185.0 Td (cursor. GraphQL is an additional product-reading interface; the broader domain is still) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 171.0 Td (primarily REST. See api-gateway/src/app.js.) Tj ET
+0.930 0.970 0.970 rg 46 117 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 142.0 Td (type Query { products\(first: Int = 20, after: String,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 130.0 Td (  search: String, category: String\): ProductConnection! }) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (4) Tj ET
+endstream
+endobj
+14 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 15 0 R >>
+endobj
+15 0 obj
+<< /Length 4918 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Data and outbound service calls) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (SQL with parameterized queries + MongoDB) Tj ET
+0.020 0.480 0.480 rg 474 678 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (MySQL is used by the gateway for idempotency and request audit data, with mysql2 parameter) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (placeholders and values passed separately. This keeps user-controlled values out of SQL syntax.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (MongoDB remains the document store for domain services such as products, orders, payments, and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (auth. The two databases serve different data shapes. See api-gateway/src/sql-store.js and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 603.0 Td (service model files.) Tj ET
+0.930 0.970 0.970 rg 46 525 520 64 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 574.0 Td (await pool.execute\() Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 562.0 Td (  "SELECT ... WHERE scope_hash=? AND idempotency_key=?",) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 550.0 Td (  [scopeHash, idempotencyKey]) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 538.0 Td (\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 512.0 Td (Timeout on outbound calls) Tj ET
+0.020 0.480 0.480 rg 474 508 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 513.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 489.0 Td (Gateway fetch calls use AbortSignal.timeout with an environment-configured limit. Order and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 475.0 Td (payment service Axios calls also set explicit timeouts. A stalled dependency therefore cannot) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 461.0 Td (hold a request open indefinitely; timeout failures are surfaced as gateway errors \(typically) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 447.0 Td (504\). See api-gateway/src/app.js, order-service/src/server.js, and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 433.0 Td (payment-service/src/services/payment.service.js.) Tj ET
+0.930 0.970 0.970 rg 46 367 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 404.0 Td (signal: AbortSignal.timeout\() Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 392.0 Td (  Number\(process.env.OUTBOUND_TIMEOUT_MS\) || 5000) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 380.0 Td (\)) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 354.0 Td (Retry with increasing backoff) Tj ET
+0.020 0.480 0.480 rg 474 350 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 355.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 331.0 Td (retryWithBackoff applies increasing delays between retry attempts, with configurable retry count) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 317.0 Td (and base delay. The gateway limits automatic retries to GET and HEAD for REST proxy traffic,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 303.0 Td (because repeating a write could create duplicate effects. GraphQL product reads can also retry.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 289.0 Td (See api-gateway/src/resilience.js.) Tj ET
+0.930 0.970 0.970 rg 46 235 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 260.0 Td (await retryWithBackoff\(call, { retries: 2, baseDelayMs: 200 }\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 248.0 Td (// Delay grows between attempts; writes are not auto-retried.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 222.0 Td (Circuit breaker) Tj ET
+0.020 0.480 0.480 rg 474 218 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 223.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 199.0 Td (The gateway tracks transient failures per upstream service. After the configured failure) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 185.0 Td (threshold, calls fail quickly while the breaker is open; after a reset interval it permits a) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 171.0 Td (probe. This reduces repeated waits against a dependency that is already failing. It is in-memory) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 157.0 Td (per gateway process, not a shared distributed breaker. See api-gateway/src/resilience.js.) Tj ET
+0.930 0.970 0.970 rg 46 103 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 128.0 Td (if \(state.failures >= this.failureThreshold\)) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 116.0 Td (  state.openedAt = Date.now\(\);) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (5) Tj ET
+endstream
+endobj
+16 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 17 0 R >>
+endobj
+17 0 obj
+<< /Length 3829 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Security, middleware, and operations) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (Deliberate CORS configuration) Tj ET
+0.020 0.480 0.480 rg 474 678 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (Gateway and service CORS origins come from CORS_ORIGIN, parsed as a comma-separated allowlist,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (with credentials enabled. This lets the browser frontend make authenticated cross-origin) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (requests while avoiding a wildcard origin. Set the variable to the actual frontend origin\(s\) in) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (each environment. See api-gateway/src/app.js and service app/server files.) Tj ET
+0.930 0.970 0.970 rg 46 563 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 588.0 Td (cors\({ origin: \(process.env.CORS_ORIGIN || defaultOrigin\)) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 576.0 Td (  .split\(","\).map\(value => value.trim\(\)\), credentials: true }\)) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 550.0 Td (Express middleware and central errors) Tj ET
+0.020 0.480 0.480 rg 474 546 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 551.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 527.0 Td (Express middleware handles security headers, CORS, request IDs, body parsing, cache policy,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 513.0 Td (throttling, validation, and routing. The gateway's final error middleware logs failures and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 499.0 Td (emits the public error envelope. Services retain their own domain-level error handling, with the) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 485.0 Td (gateway normalizing proxied failures.) Tj ET
+0.930 0.970 0.970 rg 46 407 520 64 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 456.0 Td (app.use\(express.json\({ limit: "200kb" }\)\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 444.0 Td (app.use\(\(error, req, res, next\) => {) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 432.0 Td (  res.status\(status\).json\({ success: false, message, requestId }\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 420.0 Td (}\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 394.0 Td (Structured logs and correlation ID) Tj ET
+0.020 0.480 0.480 rg 474 390 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 395.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 371.0 Td (Each gateway request receives an X-Request-Id \(or keeps the caller's supplied ID\). That ID is) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 357.0 Td (returned in the response, included in JSON log records, forwarded to services, and written to) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 343.0 Td (the SQL audit table. It helps connect events belonging to one request across the service) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 329.0 Td (boundary. See api-gateway/src/app.js and sql-store.js.) Tj ET
+0.930 0.970 0.970 rg 46 263 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 300.0 Td (console.log\(JSON.stringify\({ level: "info", service,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 288.0 Td (  requestId: req.requestId, method: req.method,) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 276.0 Td (  status: res.statusCode, durationMs }\)\);) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (6) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 19 0 R >>
+endobj
+19 0 obj
+<< /Length 3664 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Identity and runtime configuration) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (JWT authentication and authorization) Tj ET
+0.020 0.480 0.480 rg 474 678 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (Protected routes require a Bearer JWT. Services verify it using JWT_SECRET, and administrative) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (actions check the role claim \(for example, product writes require admin\). The gateway checks) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (that protected requests include an Authorization header; signature and role verification remain) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (in the owning service. Keep JWT_SECRET private and consistent wherever tokens must be verified.) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 603.0 Td (See product-service/src/server.js and order-service/src/server.js.) Tj ET
+0.930 0.970 0.970 rg 46 549 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 574.0 Td (req.user = jwt.verify\(token, process.env.JWT_SECRET\);) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 562.0 Td (if \(req.user.role !== "admin"\) return res.sendStatus\(403\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 536.0 Td (Docker and twelve-factor configuration) Tj ET
+0.020 0.480 0.480 rg 474 532 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 537.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 513.0 Td (Dockerfiles package services, and docker-compose.yml connects the gateway, domain services,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 499.0 Td (MySQL, and MongoDB for local development. Ports, credentials, origins, timeouts, and service) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 485.0 Td (URLs are configured through environment variables \(with examples in Backend/.env.example\). This) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 471.0 Td (makes the app portable across environments. Use production secrets in the deployment platform,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 457.0 Td (not committed defaults.) Tj ET
+0.930 0.970 0.970 rg 46 391 520 52 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 428.0 Td (PRODUCT_SERVICE_URL: http://product-service:4002) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 416.0 Td (SQL_DATABASE: ${SQL_DATABASE:-smartcart}) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 404.0 Td (MONGO_URI: mongodb://mongodb:27017/smartcart) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 378.0 Td (Configuration to confirm per environment) Tj ET
+0.020 0.480 0.480 rg 474 374 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 379.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 355.0 Td (Set CORS_ORIGIN to the frontend origin, configure database URLs and credentials, JWT_SECRET,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 341.0 Td (upstream service URLs, and timeout/rate-limit values before running outside local Docker. The) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 327.0 Td (environment sample documents names and safe local defaults; rotate secrets and provide real) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 313.0 Td (values in the deployment environment.) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (7) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 21 0 R >>
+endobj
+21 0 obj
+<< /Length 4366 >>
+stream
+1.000 1.000 1.000 rg 0 0 612 792 re f
+0.020 0.480 0.480 rg 0 0 8 792 re f
+0.020 0.480 0.480 rg BT /F2 8 Tf 42.0 755.0 Td (SMARTCART  /  BACKEND FIELD GUIDE) Tj ET
+0.120 0.180 0.270 rg BT /F2 23 Tf 42.0 720.0 Td (Verification and remaining work) Tj ET
+0.840 0.890 0.900 rg 42 704 528 1 re f
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 682.0 Td (Automated Jest and Supertest tests) Tj ET
+0.020 0.480 0.480 rg 474 678 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 683.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 659.0 Td (The API gateway suite uses Jest and Supertest to exercise HTTP behavior without requiring a live) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 645.0 Td (external service for every case. Current coverage includes AJV rejection, versioned routes and) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 631.0 Td (ETags, conditional 304, idempotent replay/conflict, OpenAPI/Swagger availability, rate-limit) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 617.0 Td (headers, and circuit behavior. The most recent recorded run passed 6 tests. This is useful) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 603.0 Td (regression coverage, not proof of every deployment configuration or every downstream service) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 589.0 Td (integration. See api-gateway/tests/api.test.js.) Tj ET
+0.930 0.970 0.970 rg 46 535 520 40 re f
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 560.0 Td (await request\(app\).get\("/v1/api/products"\)) Tj ET
+0.100 0.310 0.340 rg BT /F3 8 Tf 56.0 548.0 Td (  .set\("If-None-Match", etag\).expect\(304\);) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 522.0 Td (Pending: live internet deployment) Tj ET
+0.800 0.480 0.100 rg 474 518 80 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 523.0 Td (PENDING) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 499.0 Td (A deployment that is publicly reachable is not present in this workspace. Docker Compose) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 485.0 Td (prepares a local multi-service stack, but a real deployment still needs a hosting target,) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 471.0 Td (production environment variables and secrets, database hosting, and a deployed URL. After) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 457.0 Td (deployment, verify the health endpoint and key routes over HTTPS.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 438.0 Td (Scope and practical caveats) Tj ET
+0.020 0.480 0.480 rg 474 434 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 439.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 415.0 Td (This guide covers the checklist in the request. The implementation is strongest at the gateway) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 401.0 Td (boundary; some policies \(rate limits and circuit state\) are process-local, XML is limited to) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 387.0 Td (product reads, and error normalization is most reliable for requests that pass through the) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 373.0 Td (gateway. A production rollout should validate secret management, shared rate-limit/idempotency) Tj ET
+0.120 0.180 0.270 rg BT /F1 10 Tf 46.0 359.0 Td (behavior, database readiness, and deployed service URLs.) Tj ET
+0.120 0.180 0.270 rg BT /F2 13 Tf 46.0 340.0 Td (Where to start reading) Tj ET
+0.020 0.480 0.480 rg 474 336 88 17 re f
+1.000 1.000 1.000 rg BT /F2 7 Tf 480.0 341.0 Td (IMPLEMENTED) Tj ET
+0.120 0.180 0.270 rg BT /F1 9 Tf 46.0 317.0 Td (Backend/api-gateway/src/app.js - gateway pipeline and public behavior.) Tj ET
+0.120 0.180 0.270 rg BT /F1 9 Tf 46.0 303.0 Td (Backend/api-gateway/src/resilience.js - retries and breaker. Backend/api-gateway/src/sql-store.js -) Tj ET
+0.120 0.180 0.270 rg BT /F1 9 Tf 46.0 289.0 Td (SQL persistence. Backend/product-service/src/server.js - catalog negotiation and cursors.) Tj ET
+0.120 0.180 0.270 rg BT /F1 9 Tf 46.0 275.0 Td (Backend/order-service/src/server.js and Backend/payment-service/src/services/payment.service.js -) Tj ET
+0.120 0.180 0.270 rg BT /F1 9 Tf 46.0 261.0 Td (domain calls and payment integration. Backend/api-gateway/tests/api.test.js - gateway verification.) Tj ET
+0.840 0.890 0.900 rg 42 38 528 1 re f
+0.340 0.410 0.500 rg BT /F1 8 Tf 42.0 22.0 Td (SMARTCART  |  Implementation guide  |  October 2026) Tj ET
+0.340 0.410 0.500 rg BT /F1 8 Tf 550.0 22.0 Td (8) Tj ET
+endstream
+endobj
+xref
+0 22
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000169 00000 n 
+0000000239 00000 n 
+0000000314 00000 n 
+0000000382 00000 n 
+0000000528 00000 n 
+0000004066 00000 n 
+0000004212 00000 n 
+0000009180 00000 n 
+0000009328 00000 n 
+0000014298 00000 n 
+0000014446 00000 n 
+0000019429 00000 n 
+0000019577 00000 n 
+0000024547 00000 n 
+0000024695 00000 n 
+0000028576 00000 n 
+0000028724 00000 n 
+0000032440 00000 n 
+0000032588 00000 n 
+trailer
+<< /Size 22 /Root 1 0 R >>
+startxref
+37006
+%%EOF

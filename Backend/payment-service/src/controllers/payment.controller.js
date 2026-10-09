@@ -2,50 +2,62 @@ const paymentService = require("../services/payment.service");
 
 const sendError = (res, error) => {
     const statusCode = error.code === 11000 ? 409 : error.statusCode || 500;
-    res.status(statusCode).json({ success: false, message: statusCode === 500 ? "Internal server error" : error.message });
+    return res.status(statusCode).json({ success: false, message: statusCode >= 500 ? "Payment provider or service is unavailable" : error.message });
 };
 
 const createPayment = async (req, res) => {
     try {
-        const result = await paymentService.createPayment(req.body, req.get("Idempotency-Key"));
-        res.status(result.created ? 201 : 200).json({ success: true, message: result.created ? "Payment created" : "Existing payment returned", payment: result.payment });
-    } catch (error) { sendError(res, error); }
+        const result = await paymentService.createPayment({ ...req.body, userId: req.user.userId }, req.get("Idempotency-Key"));
+        const payload = { payment: result.payment, checkout: result.checkout };
+        return res.status(result.created ? 201 : 200).json({
+            success: true,
+            message: result.created ? "Payment order created" : "Existing payment returned",
+            ...payload,
+            data: payload,
+        });
+    } catch (error) { return sendError(res, error); }
 };
 
 const verifyPayment = async (req, res) => {
     try {
-        const payment = await paymentService.verifyPayment(req.params.paymentId, req.body.success);
-        res.json({ success: true, message: "Payment verified", payment });
-    } catch (error) { sendError(res, error); }
+        const payment = await paymentService.getPaymentById(req.params.paymentId);
+        if (payment.userId !== req.user.userId && req.user.role !== "admin") return res.status(403).json({ success: false, message: "Forbidden" });
+        const verified = await paymentService.verifyCheckoutPayment({ paymentId: req.params.paymentId, ...req.body });
+        return res.json({ success: true, message: "Razorpay payment verified", data: { payment: verified } });
+    } catch (error) { return sendError(res, error); }
 };
 
 const getPayment = async (req, res) => {
     try {
         const payment = await paymentService.getPaymentByOrderId(req.params.orderId);
         if (!payment) return res.status(404).json({ success: false, message: "Payment not found" });
-        res.json({ success: true, payment });
-    } catch (error) { sendError(res, error); }
+        if (payment.userId !== req.user.userId && req.user.role !== "admin") return res.status(403).json({ success: false, message: "Forbidden" });
+        return res.json({ success: true, payment });
+    } catch (error) { return sendError(res, error); }
 };
 
 const getUserPayments = async (req, res) => {
     try {
-        const result = await paymentService.getPaymentsByUserId(req.params.userId, req.query.page, req.query.limit, req.query.status);
-        res.json({ success: true, ...result });
-    } catch (error) { sendError(res, error); }
+        const requestedUser = req.params.userId || req.user.userId;
+        if (requestedUser !== req.user.userId && req.user.role !== "admin") return res.status(403).json({ success: false, message: "Forbidden" });
+        const result = await paymentService.getPaymentsByUserId(requestedUser, req.query.page, req.query.limit, req.query.status);
+        return res.json({ success: true, ...result });
+    } catch (error) { return sendError(res, error); }
 };
 
 const refundPayment = async (req, res) => {
     try {
-        const payment = await paymentService.refundPayment(req.params.paymentId);
-        res.json({ success: true, message: "Payment refunded", payment });
-    } catch (error) { sendError(res, error); }
+        const payment = await paymentService.getPaymentById(req.params.paymentId);
+        if (payment.userId !== req.user.userId && req.user.role !== "admin") return res.status(403).json({ success: false, message: "Forbidden" });
+        return res.json({ success: true, message: "Refund submitted to Razorpay", payment: await paymentService.refundPayment(req.params.paymentId) });
+    } catch (error) { return sendError(res, error); }
 };
 
 const handleWebhook = async (req, res) => {
     try {
-        const payment = await paymentService.processWebhook(req.body, req.get("X-Payment-Signature"), req.rawBody);
-        res.json({ success: true, message: "Webhook processed", payment });
-    } catch (error) { sendError(res, error); }
+        const payment = await paymentService.processWebhook(req.body, req.get("X-Razorpay-Signature"), req.rawBody);
+        return res.json({ success: true, message: "Webhook processed", paymentId: payment._id });
+    } catch (error) { return sendError(res, error); }
 };
 
 module.exports = { createPayment, verifyPayment, getPayment, getUserPayments, refundPayment, handleWebhook };
