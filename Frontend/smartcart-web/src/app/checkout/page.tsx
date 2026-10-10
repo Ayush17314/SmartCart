@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,12 +13,20 @@ import { AuthGate } from "@/components/auth-gate";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useState } from "react";
 
 type Checkout = z.infer<typeof checkoutSchema>;
 function CheckoutForm() {
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; subtotal: number; discountAmount: number; taxAmount: number; shippingAmount: number; totalAmount: number; currency: "INR" | "USD" | "EUR" } | null>(null);
   const router = useRouter();
   const qc = useQueryClient();
   const { data: cart, isLoading } = useQuery({ queryKey: ["cart"], queryFn: api.cart });
+  const orderQuote = useQuery({
+    queryKey: ["checkout-order-quote", cart?.items.map(({ productId, quantity }) => [productId, quantity])],
+    queryFn: () => api.quoteOrder({ items: (cart?.items || []).map(({ productId, quantity }) => ({ productId, quantity })) }),
+    enabled: Boolean(cart?.items.length),
+  });
   const { register, handleSubmit, formState: { errors } } = useForm<Checkout>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: { country: "India", paymentMethod: "UPI" },
@@ -36,6 +44,7 @@ function CheckoutForm() {
         country: values.country,
       },
       paymentMethod: values.paymentMethod,
+      couponCode: appliedCoupon?.code,
     }),
     onSuccess: async (result, values) => {
       if (values.paymentMethod === "COD") {
@@ -85,6 +94,12 @@ function CheckoutForm() {
     onError: (error) => toast.error(error.message || "Could not place your order"),
   });
 
+  const promotion = useMutation({
+    mutationFn: () => api.applyPromotion({ items: (cart?.items || []).map(({ productId, quantity }) => ({ productId, quantity })), code: couponCode }),
+    onSuccess: (quote) => { setAppliedCoupon(quote); setCouponCode(quote.code); toast.success("Coupon applied"); },
+    onError: (error) => { setAppliedCoupon(null); toast.error(error.message || "Could not apply coupon"); },
+  });
+
   if (isLoading) return <div className="skeleton h-72 rounded-3xl" />;
   if (!cart?.items.length) return <div className="rounded-3xl bg-sand p-10 text-center"><p className="font-display text-3xl">Your bag is still empty.</p><Link className="mt-4 inline-block underline" href="/products">Find your first piece</Link></div>;
 
@@ -94,7 +109,7 @@ function CheckoutForm() {
       <section className="rounded-3xl border border-ink/10 p-6 md:p-8"><p className="text-xs uppercase tracking-[.2em] text-emerald-700">Step 01</p><h2 className="mb-6 mt-2 font-display text-3xl">Where should it go?</h2><div className="grid gap-4 sm:grid-cols-2">{field("name", "Full name")}{field("line1", "Street address")}{field("city", "City")}{field("region", "State / region")}{field("postalCode", "Postal code")}{field("country", "Country")}</div></section>
       <section className="rounded-3xl border border-ink/10 p-6 md:p-8"><p className="text-xs uppercase tracking-[.2em] text-emerald-700">Step 02</p><h2 className="mb-6 mt-2 font-display text-3xl">How would you like to pay?</h2><div className="grid gap-3 sm:grid-cols-3">{(["UPI", "CARD", "COD"] as const).map((method) => <label key={method} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-ink/10 p-4 text-sm"><input type="radio" value={method} {...register("paymentMethod")} />{method === "COD" ? "Pay on delivery" : method}</label>)}</div><p className="mt-4 text-xs text-ink/45">UPI and card payments are securely processed by Razorpay. Test keys simulate payments without charging real money.</p></section>
     </div>
-    <aside className="h-fit rounded-3xl bg-sand p-6"><h2 className="font-display text-2xl">Your order</h2><div className="my-5 space-y-3">{cart.items.map((item) => <div key={item.productId} className="flex justify-between gap-4 text-sm"><span>{item.name} × {item.quantity}</span><span>{money(item.price * item.quantity)}</span></div>)}</div><div className="flex justify-between border-t border-ink/10 pt-5 font-medium"><span>Total</span><span>{money(cart.total)}</span></div><Button type="submit" disabled={order.isPending} className="mt-6 w-full">{order.isPending ? "Preparing checkout…" : "Place order"}</Button></aside>
+    <aside className="h-fit rounded-3xl bg-sand p-6"><h2 className="font-display text-2xl">Your order</h2><div className="my-5 space-y-3">{cart.items.map((item) => <div key={item.productId} className="flex justify-between gap-4 text-sm"><span>{item.name} Ã— {item.quantity}</span><span>{money(item.price * item.quantity, (appliedCoupon ?? orderQuote.data)?.currency)}</span></div>)}</div><div className="mb-5 flex gap-2"><input aria-label="Coupon code" value={couponCode} onChange={(event) => { setCouponCode(event.target.value); setAppliedCoupon(null); }} placeholder="Coupon code" className="field min-w-0 flex-1"/><Button type="button" variant="outline" disabled={promotion.isPending || !couponCode.trim()} onClick={() => promotion.mutate()}>{promotion.isPending ? "Checkingâ€¦" : "Apply"}</Button></div>{orderQuote.isError && <p role="alert" className="mb-3 text-sm text-red-700">Could not calculate current store pricing.</p>}<div className="space-y-2 border-t border-ink/10 pt-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money((appliedCoupon ?? orderQuote.data)?.subtotal ?? cart.total, (appliedCoupon ?? orderQuote.data)?.currency)}</span></div>{(appliedCoupon ?? orderQuote.data)?.discountAmount ? <div className="flex justify-between text-emerald-800"><span>{appliedCoupon?.code || "Coupon"} discount</span><span>âˆ’{money((appliedCoupon ?? orderQuote.data)?.discountAmount || 0, (appliedCoupon ?? orderQuote.data)?.currency)}</span></div> : null}<div className="flex justify-between"><span>Tax</span><span>{money((appliedCoupon ?? orderQuote.data)?.taxAmount || 0, (appliedCoupon ?? orderQuote.data)?.currency)}</span></div><div className="flex justify-between"><span>Shipping</span><span>{money((appliedCoupon ?? orderQuote.data)?.shippingAmount || 0, (appliedCoupon ?? orderQuote.data)?.currency)}</span></div></div><div className="mt-4 flex justify-between border-t border-ink/10 pt-4 font-medium"><span>Total</span><span>{money((appliedCoupon ?? orderQuote.data)?.totalAmount ?? cart.total, (appliedCoupon ?? orderQuote.data)?.currency)}</span></div><Button type="submit" disabled={order.isPending || (!orderQuote.data && !appliedCoupon)} className="mt-6 w-full">{order.isPending ? "Preparing checkoutâ€¦" : "Place order"}</Button></aside>
   </form>;
 }
 

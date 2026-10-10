@@ -11,6 +11,7 @@ describe("SmartCart API gateway", () => {
     let upstream;
     let upstreamUrl;
     let products = [];
+    let authPaths = [];
 
     beforeAll(async () => {
         upstream = http.createServer((req, res) => {
@@ -18,6 +19,13 @@ describe("SmartCart API gateway", () => {
                 let body = "";
                 req.on("data", (chunk) => { body += chunk; });
                 req.on("end", () => {
+                    if (req.url.startsWith("/api/auth/")) {
+                        authPaths.push(req.url);
+                        res.statusCode = 200;
+                        res.setHeader("Content-Type", "application/json");
+                        res.end(JSON.stringify({ success: true, data: { user: { id: "u1" }, token: "private-jwt" } }));
+                        return;
+                    }
                     products.push(JSON.parse(body));
                     res.statusCode = 201;
                     res.setHeader("Content-Type", "application/json");
@@ -35,7 +43,7 @@ describe("SmartCart API gateway", () => {
 
     afterAll(async () => new Promise((resolve) => upstream.close(resolve)));
 
-    beforeEach(() => { products = []; });
+    beforeEach(() => { products = []; authPaths = []; });
 
     test("serves health and documents", async () => {
         await request(app).get("/health").expect(200).expect("Cache-Control", "no-store");
@@ -48,6 +56,41 @@ describe("SmartCart API gateway", () => {
     test("validates product bodies with AJV before proxying", async () => {
         await request(app).post("/api/products").set("Idempotency-Key", "bad-product").send({ name: "", price: -1 }).expect(400);
         expect(products).toHaveLength(0);
+    });
+
+    test("accepts a bounded coupon code on validated order requests", () => {
+        const { validateBody } = require("../src/schemas");
+        const validate = validateBody("orderCreate");
+        let validError;
+        validate({ body: { items: [{ productId: "p1", quantity: 1 }], couponCode: "SAVE_10" } }, {}, (error) => { validError = error; });
+        expect(validError).toBeUndefined();
+        let invalidError;
+        validate({ body: { items: [{ productId: "p1", quantity: 1 }], couponCode: "TOO LONG!".repeat(5) } }, {}, (error) => { invalidError = error; });
+        expect(invalidError.status).toBe(400);
+    });
+
+    test("routes public settings through the product service", async () => {
+        const response = await request(app).get("/api/settings/public").expect(200);
+        expect(response.body.data.items[0].name).toBe("Desk lamp");
+    });
+
+    test("only returns login JWTs to the trusted server exchange", async () => {
+        process.env.AUTH_SERVICE_URL = upstreamUrl;
+        const publicResponse = await request(app).post("/api/auth/login").send({ email: "user@example.com", password: "password" }).expect(200);
+        expect(publicResponse.body.data).toEqual({ user: { id: "u1" } });
+        const trustedResponse = await request(app).post("/api/auth/login").set("X-Auth-Exchange-Secret", "local-auth-exchange-secret-change-me").send({ email: "user@example.com", password: "password" }).expect(200);
+        expect(trustedResponse.body.data.token).toBe("private-jwt");
+    });
+
+    test("routes all three login portals through Auth Service and keeps JWTs private", async () => {
+        process.env.AUTH_SERVICE_URL = upstreamUrl;
+        for (const path of ["customer-login", "staff-login", "super-admin-login"]) {
+            const response = await request(app).post(`/api/auth/${path}`).send({ email: "user@example.com", password: "password" }).expect(200);
+            expect(response.body.data).toEqual({ user: { id: "u1" } });
+        }
+        await request(app).post("/api/auth/super-admin-verify").send({ challengeId: "A".repeat(43), code: "123456" }).expect(200);
+        await request(app).post("/api/auth/super-admin-verify").send({ challengeId: "short", code: "12" }).expect(400);
+        expect(authPaths).toEqual(["/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify"]);
     });
 
     test("routes versioned GET requests and emits ETags", async () => {

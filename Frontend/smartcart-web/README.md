@@ -25,4 +25,6 @@ docker compose up --build
 ```
 
 Authentication tokens are kept in an HTTP-only cookie by the Next route handlers.
-The app uses a local development payment adapter; it does not process real payments.
+Email verification and password recovery use the Auth Service email provider;
+the development mock returns local-only links and sends no email. UPI and card
+checkout use the Razorpay integration documented in `Backend/payment-service/README.md`.

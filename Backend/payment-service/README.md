@@ -27,6 +27,15 @@ Cash on delivery skips Razorpay Checkout. Amounts are supplied in rupees by the 
 | `POST` | `/api/payments/webhook` | Accept signed Razorpay `payment.captured` and `payment.failed` events |
 | `GET` | `/api/payments/order/:orderId` | Retrieve a payment belonging to the authenticated user |
 | `GET` | `/api/payments/user` | List the authenticated user’s payments |
-| `POST` | `/api/payments/refund/:paymentId` | Submit a full refund to Razorpay |
+| `POST` | `/api/payments/refund/:paymentId` | Submit an approved return's full refund to Razorpay (Super Admin only) |
+| `GET` | `/api/payments/admin/reconciliation` | Paginated payment reconciliation report (`analytics.read`); `format=csv` exports at most 5,000 matching records |
+| `GET` | `/api/payments/admin/audit` | Read reconciliation export audit records (`audit.read`) |
 
 Use Razorpay test keys and test payment details first. Switch to live keys only after verifying the full flow and configuring the live webhook. This service does not store card numbers. Configure Razorpay capture settings so payments are captured automatically; an authorized but uncaptured payment remains pending in SmartCart.
+
+Refund eligibility is checked with Order Service and requires a reviewed return.
+A database compare-and-set lock prevents concurrent full refunds. If the
+Razorpay request times out or returns an ambiguous server error, the lock stays
+set because the provider may have accepted it; reconcile the provider
+transaction before manually clearing the lock. Partial refunds are not
+supported.

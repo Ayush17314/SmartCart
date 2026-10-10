@@ -10,6 +10,11 @@ SmartCart is an Amazon-inspired e-commerce web application built with a microser
 - Wishlist management
 - Payment creation, verification, refund processing, and payment history
 - Order creation and order tracking
+- Customer authentication, email verification, and password recovery
+- Permission-gated administration for products, inventory, orders, customers, staff, returns, notifications, and audit history
+- Server-validated coupon promotions and customer product reviews with moderation
+- Paginated order/sales reports with bounded CSV export
+- Store identity, inventory threshold, return-policy, and operational settings
 
 ## Architecture
 
@@ -50,4 +55,12 @@ webhook secret, then start the services from `Backend` with
 
 ## Security Notes
 
-The payment service does not receive or store card numbers. A real payment provider should process payment details and notify SmartCart through a signed webhook. Keep `.env` files out of version control and never commit database URLs, API keys, or webhook secrets.
+The browser uses an HTTP-only authentication cookie; backend services validate sessions and permissions. The payment service does not receive or store card numbers. A real payment provider should process payment details and notify SmartCart through a signed webhook. Keep `.env` files out of version control and never commit database URLs, API keys, or webhook secrets.
+
+## Admin operations and current limits
+
+The admin area is available at `/admin` after signing in with a provisioned staff account. Promotion eligibility and order totals are recalculated by Order Service from current product prices. Product reviews can only be submitted by customers with a delivered purchase and remain hidden until moderation. Reports use paid order data; net sales subtract recorded discounts and full refunds.
+
+Store name and logo settings are reflected in the storefront, and the return policy appears in the footer. Tax and shipping settings are included in server-calculated checkout quotes and saved order totals; low-stock settings affect inventory reporting. The selected currency must match `PAYMENT_CURRENCY` configured for the payment provider, and storefront prices use that currency. Product/inventory, customer, order, and payment/refund CSV exports are available to authorized staff and are audited. Notification preferences suppress configured order, shipment, and return/refund updates while payment and security messages continue; promotion defaults prefill coupon creation and are validated by Order Service. Refunds are full-order only and carrier tracking is manual. Razorpay checkout currency is controlled by service configuration.
+
+The first Super Admin must be created through the configured bootstrap command documented in [Auth Service setup](Backend/auth-service/README.md). No default administrator account is shipped.

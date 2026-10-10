@@ -6,12 +6,14 @@ const schemas = {
         type: "object", additionalProperties: false, required: ["name", "price", "category"],
         properties: {
             name: { type: "string", minLength: 1, maxLength: 200 },
+            sku: { type: "string", maxLength: 80 },
             description: { type: "string", maxLength: 5000 },
             price: { type: "number", minimum: 0 },
             category: { type: "string", minLength: 1, maxLength: 100 },
             brand: { type: "string", maxLength: 100 },
-            images: { type: "array", items: { type: "string", maxLength: 2048 } },
+            images: { type: "array", items: { type: "string", maxLength: 2048, pattern: "^https://" } },
             stock: { type: "integer", minimum: 0 },
+            stockAdjustmentReason: { type: "string", maxLength: 500 },
             rating: { type: "number", minimum: 0, maximum: 5 },
             specifications: { type: "object" },
         },
@@ -25,6 +27,7 @@ const schemas = {
             } },
             shippingAddress: { type: "object" },
             paymentMethod: { type: "string", enum: ["UPI", "CARD", "COD"] },
+            couponCode: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z0-9_-]+$" },
         },
     },
     paymentCreate: {
@@ -43,6 +46,11 @@ const schemas = {
         type: "object", additionalProperties: false, required: ["email", "password"],
         properties: { email: { type: "string", pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }, password: { type: "string", minLength: 1 } },
     },
+    superAdminCode: {
+        type: "object", additionalProperties: false, required: ["challengeId", "code"],
+        properties: { challengeId: { type: "string", minLength: 40, maxLength: 64 }, code: { type: "string", pattern: "^\\d{6}$" } },
+    },
+    emailToken: { type: "object", additionalProperties: false, required: ["token"], properties: { token: { type: "string", minLength: 32, maxLength: 128 } } },
     registration: {
         type: "object", additionalProperties: false, required: ["name", "email", "password"],
         properties: { name: { type: "string", minLength: 1, maxLength: 200 }, email: { type: "string", pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }, password: { type: "string", minLength: 8 } },

@@ -15,6 +15,7 @@ const paymentSchema = new mongoose.Schema({
     },
     status: { type: String, enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"], default: "PENDING" },
     refundedAmount: { type: Number, default: 0, min: 0 },
+    refundInProgress: { type: Boolean, default: false, select: false },
     refundId: { type: String, default: null },
     failureReason: { type: String, default: null },
     events: [{
@@ -32,6 +33,7 @@ paymentSchema.set("toJSON", {
 });
 
 paymentSchema.index({ userId: 1, createdAt: -1 });
+paymentSchema.index({ createdAt: -1, status: 1 });
 paymentSchema.index(
     { userId: 1, idempotencyKey: 1 },
     { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } }

@@ -20,15 +20,23 @@ const breakers = new CircuitBreaker({
 const serviceConfigs = [
     { key: "auth", path: "/api/auth", env: "AUTH_SERVICE_URL", fallback: "http://localhost:4001" },
     { key: "products", path: "/api/products", env: "PRODUCT_SERVICE_URL", fallback: "http://localhost:4002" },
+    { key: "reviews", path: "/api/reviews", env: "PRODUCT_SERVICE_URL", fallback: "http://localhost:4002" },
+    { key: "settings", path: "/api/settings", env: "PRODUCT_SERVICE_URL", fallback: "http://localhost:4002" },
     { key: "cart", path: "/api/cart", env: "CART_SERVICE_URL", fallback: "http://localhost:4003" },
     { key: "wishlist", path: "/api/wishlist", env: "WISHLIST_SERVICE_URL", fallback: "http://localhost:4004" },
     { key: "orders", path: "/api/orders", env: "ORDER_SERVICE_URL", fallback: "http://localhost:4005" },
+    { key: "promotions", path: "/api/promotions", env: "ORDER_SERVICE_URL", fallback: "http://localhost:4005" },
     { key: "payments", path: "/api/payments", env: "PAYMENT_SERVICE_URL", fallback: "http://localhost:4006" },
     { key: "notifications", path: "/api/notifications", env: "NOTIFICATION_SERVICE_URL", fallback: "http://localhost:4007" },
 ];
 const routesWithBodySchema = [
     { method: "post", path: "/api/auth/register", schema: "registration" },
     { method: "post", path: "/api/auth/login", schema: "login" },
+    { method: "post", path: "/api/auth/customer-login", schema: "login" },
+    { method: "post", path: "/api/auth/staff-login", schema: "login" },
+    { method: "post", path: "/api/auth/super-admin-login", schema: "login" },
+    { method: "post", path: "/api/auth/super-admin-verify", schema: "superAdminCode" },
+    { method: "post", path: "/api/auth/verify-email", schema: "emailToken" },
     { method: "post", path: "/api/products", schema: "productCreate" },
     { method: "put", path: /^\/api\/products\/[^/]+$/, schema: "productCreate" },
     { method: "post", path: "/api/orders", schema: "orderCreate" },
@@ -36,7 +44,7 @@ const routesWithBodySchema = [
     { method: "post", path: "/api/payments/create", schema: "paymentCreate" },
 ];
 const idempotentPostPaths = new Set(["/api/products", "/api/orders", "/api/cart/items", "/api/payments/create"]);
-const protectedRoutePrefixes = ["/api/cart", "/api/wishlist", "/api/orders", "/api/payments"];
+const protectedRoutePrefixes = ["/api/cart", "/api/wishlist", "/api/orders", "/api/promotions", "/api/reviews", "/api/payments", "/api/notifications"];
 const graphqlSchema = buildSchema(`
     type Product { _id: ID!, name: String!, description: String, price: Float!, category: String!, brand: String, stock: Int }
     type ProductConnection { items: [Product!]!, nextCursor: String, next: String }
@@ -95,6 +103,14 @@ function identityHash(req) {
 
 function fingerprint(req) {
     return crypto.createHash("sha256").update(JSON.stringify({ body: req.body, query: req.query })).digest("hex");
+}
+
+function authExchangeAuthorized(req) {
+    const expected = process.env.AUTH_EXCHANGE_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-auth-exchange-secret-change-me");
+    const received = req.get("X-Auth-Exchange-Secret") || "";
+    const expectedBuffer = Buffer.from(expected);
+    const receivedBuffer = Buffer.from(received);
+    return expectedBuffer.length >= 32 && receivedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
 }
 
 async function fetchUpstream(url, options) {
@@ -170,6 +186,7 @@ async function proxyRequest(config, req, res, next) {
                 accept: req.get("Accept") || "application/json",
                 "content-type": req.get("Content-Type") || "application/json",
                 authorization: req.get("Authorization") || "",
+                ...(["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify"].includes(req.apiPath) && authExchangeAuthorized(req) ? { "x-auth-exchange-secret": process.env.AUTH_EXCHANGE_SECRET || "local-auth-exchange-secret-change-me" } : {}),
                 "idempotency-key": req.get("Idempotency-Key") || "",
                 "x-request-id": req.requestId,
                 "if-none-match": req.get("If-None-Match") || "",
@@ -195,6 +212,12 @@ async function proxyRequest(config, req, res, next) {
         }
         if (contentType.includes("application/xml") || contentType.includes("text/xml")) return res.type("application/xml").send(payload);
         if (contentType.includes("application/json")) {
+            if (["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify"].includes(req.apiPath)) {
+                let loginBody;
+                try { loginBody = JSON.parse(payload); } catch { loginBody = null; }
+                if (loginBody?.data?.token && !authExchangeAuthorized(req)) delete loginBody.data.token;
+                if (loginBody) return res.type("application/json").send(JSON.stringify(loginBody));
+            }
             return res.type("application/json").send(payload);
         }
         return res.type(contentType).send(payload);

@@ -25,6 +25,26 @@ async function syncOrderPayment(payment) {
     }
 }
 
+async function enqueuePaymentNotification(payment, event) {
+    const secret = process.env.NOTIFICATION_SERVICE_SECRET;
+    const serviceUrl = process.env.NOTIFICATION_SERVICE_URL;
+    if (!secret || !serviceUrl) return;
+    try {
+        await axios.post(`${serviceUrl}/api/notifications/payment`, {
+            userId: payment.userId, event, orderId: payment.orderId, status: payment.status,
+        }, {
+            headers: { "X-Service-Token": secret, "Idempotency-Key": `${event}/${String(payment._id)}` },
+            timeout: Number(process.env.NOTIFICATION_SERVICE_TIMEOUT_MS) || 3000,
+        });
+    } catch (error) {
+        console.error(JSON.stringify({ level: "error", service: "payment-service", message: "Could not queue payment notification", paymentId: String(payment._id), event, error: error.message }));
+    }
+}
+
+function paymentNotificationEvent(status) {
+    return status === "SUCCESS" ? "payment.succeeded" : status === "FAILED" ? "payment.failed" : status === "REFUNDED" ? "payment.refunded" : null;
+}
+
 function getRazorpayConfig() {
     const keyId = razorpayKeyId();
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -47,7 +67,9 @@ async function razorpayRequest(method, path, data) {
     } catch (error) {
         const status = error.response?.status;
         const message = error.response?.data?.error?.description;
-        throw new PaymentError(message || (status ? "Razorpay rejected the request" : "Razorpay is temporarily unavailable"), status && status < 500 ? 502 : 503);
+        const paymentError = new PaymentError(message || (status ? "Razorpay rejected the request" : "Razorpay is temporarily unavailable"), status && status < 500 ? 502 : 503);
+        if (status && status < 500) paymentError.providerRejected = true;
+        throw paymentError;
     }
 }
 
@@ -58,7 +80,7 @@ const getPaymentById = async (paymentId) => {
     return payment;
 };
 
-const validatePaymentData = ({ orderId, userId, amount, paymentMethod }) => {
+const validatePaymentData = ({ orderId, userId, amount, paymentMethod, currency }) => {
     if (!orderId || !String(orderId).trim()) throw new PaymentError("orderId is required");
     if (!userId || !String(userId).trim()) throw new PaymentError("userId is required");
     const numericAmount = Number(amount);
@@ -66,6 +88,7 @@ const validatePaymentData = ({ orderId, userId, amount, paymentMethod }) => {
         throw new PaymentError("amount must be a positive value with no more than two decimal places");
     }
     if (!PAYMENT_METHODS.includes(String(paymentMethod).toUpperCase())) throw new PaymentError("paymentMethod must be UPI, CARD, or COD");
+    if (currency && !/^[A-Z]{3}$/.test(String(currency).toUpperCase())) throw new PaymentError("currency must be a valid three-letter currency code");
 };
 
 const checkoutDetails = (payment) => ({
@@ -84,10 +107,12 @@ const createPayment = async (data, idempotencyKey) => {
     const orderId = String(data.orderId).trim();
     const amount = Number(data.amount);
     const paymentMethod = String(data.paymentMethod).toUpperCase();
+    const currency = String(data.currency || process.env.PAYMENT_CURRENCY || "INR").toUpperCase();
+    if (currency !== String(process.env.PAYMENT_CURRENCY || "INR").toUpperCase()) throw new PaymentError("Order currency does not match configured payment currency", 409);
 
     const priorPayment = await Payment.findOne({ userId, idempotencyKey }).select("+idempotencyKey");
     if (priorPayment) {
-        if (priorPayment.orderId !== orderId || priorPayment.amount !== amount || priorPayment.paymentMethod !== paymentMethod) {
+        if (priorPayment.orderId !== orderId || priorPayment.amount !== amount || priorPayment.paymentMethod !== paymentMethod || priorPayment.currency !== currency) {
             throw new PaymentError("Idempotency key was already used with different payment data", 409);
         }
         if (priorPayment.gateway.paymentIntentId || paymentMethod === "COD") {
@@ -101,14 +126,13 @@ const createPayment = async (data, idempotencyKey) => {
 
     if (paymentMethod === "COD") {
         const payment = await Payment.create({
-            orderId, userId, amount, paymentMethod, idempotencyKey,
+            orderId, userId, amount, currency, paymentMethod, idempotencyKey,
             gateway: { provider: "OFFLINE" },
             events: [{ type: "PAYMENT_CREATED", message: "Cash on delivery selected" }],
         });
         return { payment, created: true, checkout: null };
     }
 
-    const currency = process.env.PAYMENT_CURRENCY || "INR";
     let payment = priorPayment;
     let created = false;
     if (!payment) {
@@ -148,6 +172,7 @@ const verifyCheckoutPayment = async ({ paymentId, razorpayOrderId, razorpayPayme
     }
     if (payment.status === "SUCCESS") {
         await syncOrderPayment(payment);
+        await enqueuePaymentNotification(payment, "payment.succeeded");
         return payment;
     }
     if (remotePayment.status === "captured") {
@@ -163,7 +188,11 @@ const verifyCheckoutPayment = async ({ paymentId, razorpayOrderId, razorpayPayme
         addEvent(payment, "PAYMENT_AUTHORIZED", "Payment is authorized and awaiting capture");
     }
     await payment.save();
-    if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) await syncOrderPayment(payment);
+    if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) {
+        await syncOrderPayment(payment);
+        const event = paymentNotificationEvent(payment.status);
+        if (event) await enqueuePaymentNotification(payment, event);
+    }
     return payment;
 };
 
@@ -187,18 +216,38 @@ const getPaymentsByUserId = async (userId, page = 1, limit = 10, status) => {
 };
 
 const refundPayment = async (paymentId) => {
-    const payment = await getPaymentById(paymentId);
-    if (payment.status !== "SUCCESS") throw new PaymentError("Only successful payments can be refunded", 409);
-    if (payment.gateway.provider !== "RAZORPAY" || !payment.transactionId) throw new PaymentError("This payment cannot be refunded through Razorpay", 409);
-    const remoteRefund = await razorpayRequest("post", `/payments/${encodeURIComponent(payment.transactionId)}/refund`, {
-        amount: Math.round(payment.amount * 100), notes: { smartcartOrderId: payment.orderId },
-    });
+    const existing = await getPaymentById(paymentId);
+    if (existing.status !== "SUCCESS") throw new PaymentError("Only successful payments can be refunded", 409);
+    if (existing.gateway.provider !== "RAZORPAY" || !existing.transactionId) throw new PaymentError("This payment cannot be refunded through Razorpay", 409);
+    getRazorpayConfig();
+    const payment = await Payment.findOneAndUpdate(
+        { _id: paymentId, status: "SUCCESS", refundInProgress: { $ne: true } },
+        { $set: { refundInProgress: true } },
+        { new: true },
+    );
+    if (!payment) throw new PaymentError("This payment is already refunded, being refunded, or is not eligible", 409);
+    let remoteRefund;
+    try {
+        remoteRefund = await razorpayRequest("post", `/payments/${encodeURIComponent(payment.transactionId)}/refund`, {
+            amount: Math.round(payment.amount * 100), notes: { smartcartOrderId: payment.orderId },
+        });
+    } catch (error) {
+        if (error.providerRejected) {
+            await Payment.updateOne({ _id: payment._id, refundInProgress: true }, { $set: { refundInProgress: false } });
+            throw error;
+        }
+        // The provider may have accepted the request before a timeout or connection loss.
+        // Keep the lock until an operator reconciles the provider transaction.
+        throw new PaymentError("Refund outcome is uncertain. Do not retry until the Razorpay refund is reconciled.", 503);
+    }
     payment.status = "REFUNDED";
     payment.refundedAmount = Number(remoteRefund.amount) / 100;
     payment.refundId = remoteRefund.id;
+    payment.refundInProgress = false;
     addEvent(payment, "PAYMENT_REFUNDED", `Razorpay refund ${remoteRefund.id} created`);
     await payment.save();
     await syncOrderPayment(payment);
+    await enqueuePaymentNotification(payment, "payment.refunded");
     return payment;
 };
 
@@ -223,11 +272,19 @@ const processWebhook = async (payload, signature, rawBody) => {
         payment.failureReason = entity.error_description || "Razorpay payment failed";
         addEvent(payment, "PAYMENT_FAILED", payment.failureReason);
     } else {
-        if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) await syncOrderPayment(payment);
+        if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) {
+            await syncOrderPayment(payment);
+            const event = paymentNotificationEvent(payment.status);
+            if (event) await enqueuePaymentNotification(payment, event);
+        }
         return payment;
     }
     await payment.save();
-    if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) await syncOrderPayment(payment);
+    if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) {
+        await syncOrderPayment(payment);
+        const event = paymentNotificationEvent(payment.status);
+        if (event) await enqueuePaymentNotification(payment, event);
+    }
     return payment;
 };
 

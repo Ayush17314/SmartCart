@@ -4,7 +4,10 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "node test/permissions.test.js && node test/auth-login.test.js",
+    "migrate:auth": "node scripts/backfill-auth-fields.js",
+    "bootstrap:super-admin": "node scripts/bootstrap-super-admin.js"
   },
   "dependencies": {
     "express": "^4.21.2",
