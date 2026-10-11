@@ -6,38 +6,47 @@ let useMemory = process.env.NODE_ENV === "test" || process.env.IDEMPOTENCY_STORE
 
 async function initializeSqlStore() {
     if (useMemory) return;
-    pool = mysql.createPool({
-        host: process.env.SQL_HOST || "mysql",
-        port: Number(process.env.SQL_PORT) || 3306,
-        user: process.env.SQL_USER || "smartcart",
-        password: process.env.SQL_PASSWORD,
-        database: process.env.SQL_DATABASE || "smartcart",
-        waitForConnections: true,
-        connectionLimit: Number(process.env.SQL_POOL_SIZE) || 10,
-        queueLimit: 0,
-    });
-    await pool.query(`CREATE TABLE IF NOT EXISTS api_idempotency (
-        scope_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-        idempotency_key VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-        route_path VARCHAR(512) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-        http_method VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-        request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-        response_status SMALLINT NULL,
-        response_body MEDIUMTEXT NULL,
-        completed BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (scope_hash, idempotency_key, route_path, http_method)
-    )`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS api_audit (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        request_id VARCHAR(100) NOT NULL,
-        http_method VARCHAR(10) NOT NULL,
-        route_path VARCHAR(512) NOT NULL,
-        status_code SMALLINT NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_api_audit_created_at (created_at)
-    )`);
-    await pool.execute("DELETE FROM api_idempotency WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    try {
+        pool = mysql.createPool({
+            host: process.env.SQL_HOST || "localhost",
+            port: Number(process.env.SQL_PORT) || 3306,
+            user: process.env.SQL_USER || "smartcart",
+            password: process.env.SQL_PASSWORD,
+            database: process.env.SQL_DATABASE || "smartcart",
+            waitForConnections: true,
+            connectionLimit: Number(process.env.SQL_POOL_SIZE) || 10,
+            queueLimit: 0,
+        });
+        await pool.query(`CREATE TABLE IF NOT EXISTS api_idempotency (
+            scope_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            idempotency_key VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            route_path VARCHAR(512) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            http_method VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            response_status SMALLINT NULL,
+            response_body MEDIUMTEXT NULL,
+            completed BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (scope_hash, idempotency_key, route_path, http_method)
+        )`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS api_audit (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            request_id VARCHAR(100) NOT NULL,
+            http_method VARCHAR(10) NOT NULL,
+            route_path VARCHAR(512) NOT NULL,
+            status_code SMALLINT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_api_audit_created_at (created_at)
+        )`);
+        await pool.execute("DELETE FROM api_idempotency WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+            console.warn(JSON.stringify({ level: "warn", service: "api-gateway", message: "MySQL connection failed in development; falling back to in-memory idempotency store", error: err.message }));
+            useMemory = true;
+            return;
+        }
+        throw err;
+    }
 }
 
 function compositeKey(scopeHash, idempotencyKey, routePath, method) {

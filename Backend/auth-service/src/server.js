@@ -31,6 +31,7 @@ const User = mongoose.models.User || mongoose.model("User", new Schema({
   emailVerified: { type: Boolean, default: false, index: true },
   tokenVersion: { type: Number, default: 0 },
   address: Schema.Types.Mixed,
+  addresses: { type: [Schema.Types.Mixed], default: [] },
   emailVerificationTokenHash: { type: String, select: false },
   emailVerificationExpiresAt: { type: Date, select: false },
   staffInviteTokenHash: { type: String, select: false },
@@ -74,11 +75,46 @@ const sendError = (res, error) => {
   const status = error.statusCode || (error.name === "ValidationError" || error.name === "CastError" ? 400 : 500);
   return res.status(status).json({ success: false, message: status >= 500 ? "Internal server error" : error.message, requestId: res.getHeader("X-Request-Id") });
 };
-const safeUser = (user) => ({
-  id: String(user._id), name: user.name, email: user.email, phone: user.phone,
-  role: user.role, permissions: permissionsFor(user.role), isActive: user.isActive, emailVerified: user.emailVerified,
-  address: user.address, createdAt: user.createdAt,
-});
+function normalizeAddressItem(item = {}) {
+  return {
+    id: String(item.id || crypto.randomUUID()),
+    label: String(item.label || "Home").trim().slice(0, 40) || "Home",
+    name: String(item.name || "").trim().slice(0, 120),
+    phone: String(item.phone || "").trim().slice(0, 40),
+    line1: String(item.line1 || "").trim().slice(0, 240),
+    city: String(item.city || "").trim().slice(0, 100),
+    region: String(item.region || "").trim().slice(0, 100),
+    postalCode: String(item.postalCode || "").trim().slice(0, 30),
+    country: String(item.country || "India").trim().slice(0, 80) || "India",
+    isDefault: Boolean(item.isDefault),
+  };
+}
+function normalizeUserAddresses(user) {
+  if (Array.isArray(user.addresses) && user.addresses.length > 0) {
+    const list = user.addresses
+      .filter((a) => a && typeof a === "object" && String(a.line1 || "").trim())
+      .map((a) => normalizeAddressItem(a));
+    if (list.length > 0) {
+      const defaultIdx = list.findIndex((a) => a.isDefault);
+      const chosenIdx = defaultIdx >= 0 ? defaultIdx : 0;
+      list.forEach((a, idx) => { a.isDefault = idx === chosenIdx; });
+    }
+    return list;
+  }
+  if (user.address && typeof user.address === "object" && String(user.address.line1 || "").trim()) {
+    return [normalizeAddressItem({ ...user.address, isDefault: true })];
+  }
+  return [];
+}
+const safeUser = (user) => {
+  const addresses = normalizeUserAddresses(user);
+  const defaultAddress = addresses.find((a) => a.isDefault) || addresses[0] || user.address;
+  return {
+    id: String(user._id), name: user.name, email: user.email, phone: user.phone,
+    role: user.role, permissions: permissionsFor(user.role), isActive: user.isActive, emailVerified: user.emailVerified,
+    address: defaultAddress, addresses, createdAt: user.createdAt,
+  };
+};
 const tokenFor = (user) => jwt.sign({ userId: String(user._id), tokenVersion: user.tokenVersion || 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 const matchesHash = (provided, expected) => {
@@ -349,7 +385,29 @@ app.put("/api/auth/profile", authenticate, async (req, res) => {
   const updates = {};
   if (req.body.name !== undefined) updates.name = String(req.body.name).trim();
   if (req.body.phone !== undefined) updates.phone = String(req.body.phone).trim();
-  if (req.body.address !== undefined) updates.address = req.body.address;
+  if (Array.isArray(req.body.addresses)) {
+    if (req.body.addresses.length > 20) {
+      return res.status(400).json({ success: false, message: "You can save up to 20 addresses." });
+    }
+    const cleaned = [];
+    for (const raw of req.body.addresses) {
+      if (!raw || typeof raw !== "object") continue;
+      const item = normalizeAddressItem(raw);
+      if (!item.name || !item.line1 || !item.city || !item.region || !item.postalCode || !item.country) {
+        return res.status(400).json({ success: false, message: "Each address must include recipient name, street address, city, state/region, postal code, and country." });
+      }
+      cleaned.push(item);
+    }
+    if (cleaned.length > 0) {
+      const defaultIdx = cleaned.findIndex((a) => a.isDefault);
+      const chosenIdx = defaultIdx >= 0 ? defaultIdx : 0;
+      cleaned.forEach((a, idx) => { a.isDefault = idx === chosenIdx; });
+    }
+    updates.addresses = cleaned;
+    updates.address = cleaned.find((a) => a.isDefault) || cleaned[0] || null;
+  } else if (req.body.address !== undefined) {
+    updates.address = req.body.address;
+  }
   const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true });
   await audit(req, "profile.update", "success", String(user._id), String(user._id));
   return reply(res, safeUser(user));

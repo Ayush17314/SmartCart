@@ -12,20 +12,100 @@ export default function AcceptStaffInvitePage() {
   const [confirmation, setConfirmation] = useState("");
   const [pending, setPending] = useState(false);
   const [complete, setComplete] = useState(false);
+
   useEffect(() => {
     const rawToken = new URLSearchParams(window.location.hash.slice(1)).get("token") || "";
     setToken(rawToken);
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token) { toast.error("Invitation token is missing. Open the original invitation link."); return; }
-    if (password.length < 8 || password.length > 128) { toast.error("Password must be between 8 and 128 characters."); return; }
-    if (password !== confirmation) { toast.error("Passwords do not match."); return; }
+    if (!token) {
+      toast.error("Invitation token is missing. Please open the invitation link sent to you.");
+      return;
+    }
+    if (password.length < 8 || password.length > 128) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmation) {
+      toast.error("Passwords do not match.");
+      return;
+    }
     setPending(true);
-    try { await api.acceptStaffInvite(token, password); setComplete(true); setToken(""); toast.success("Invitation accepted. You can sign in now."); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Could not accept invitation"); }
-    finally { setPending(false); }
+    try {
+      await api.acceptStaffInvite(token, password);
+      setComplete(true);
+      setToken("");
+      toast.success("Account activated! You can now sign in.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not activate account");
+    } finally {
+      setPending(false);
+    }
   };
-  return <section className="mx-auto max-w-md px-5 py-20"><p className="text-xs uppercase tracking-[.2em] text-emerald-700">Staff access</p><h1 className="mt-3 font-display text-5xl">Accept invitation.</h1>{complete ? <div className="mt-8 rounded-3xl bg-sand p-7"><p>Your staff account is ready. Sign in using the email address that received the invitation.</p><Link className="mt-5 inline-block underline" href="/login">Go to sign in</Link></div> : <form onSubmit={submit} className="mt-8 space-y-4 rounded-3xl border border-ink/10 p-6"><label className="block text-sm">New password<input required type="password" minLength={8} maxLength={128} autoComplete="new-password" className="field mt-1" value={password} onChange={(event) => setPassword(event.target.value)} /></label><label className="block text-sm">Confirm password<input required type="password" minLength={8} maxLength={128} autoComplete="new-password" className="field mt-1" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><Button className="w-full" disabled={pending || !token}>{pending ? "Accepting…" : "Set password and accept"}</Button>{!token && <p role="alert" className="text-sm text-red-700">Waiting for the invitation token. Open the full link from your email.</p>}</form>}<Link href="/login" className="mt-6 inline-block text-sm underline">Return to sign in</Link></section>;
+
+  return (
+    <section className="mx-auto max-w-md px-5 py-16">
+      <div className="rounded-2xl border border-ink/10 bg-white p-6 shadow-xs sm:p-8 dark:bg-zinc-900">
+        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+          Team Onboarding
+        </span>
+        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+          Set up your staff account
+        </h1>
+        {complete ? (
+          <div className="mt-6 rounded-xl bg-emerald-50 p-5 text-sm text-emerald-950">
+            <p>Your staff account is active. You can now sign in with your work email and password.</p>
+            <Link
+              className="mt-4 inline-block font-semibold text-emerald-800 underline"
+              href="/login?portal=staff"
+            >
+              Sign in to Staff Portal →
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="mt-6 space-y-4">
+            <label className="block text-xs font-semibold text-ink/80">
+              Create password
+              <input
+                required
+                type="password"
+                minLength={8}
+                maxLength={128}
+                autoComplete="new-password"
+                className="field mt-1"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Minimum 8 characters"
+              />
+            </label>
+            <label className="block text-xs font-semibold text-ink/80">
+              Confirm password
+              <input
+                required
+                type="password"
+                minLength={8}
+                maxLength={128}
+                autoComplete="new-password"
+                className="field mt-1"
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                placeholder="Re-enter password"
+              />
+            </label>
+            <Button className="w-full" disabled={pending || !token}>
+              {pending ? "Activating..." : "Activate Account"}
+            </Button>
+            {!token && (
+              <p role="alert" className="text-xs text-red-700">
+                Invalid or missing invitation token. Please open the full link from your invitation.
+              </p>
+            )}
+          </form>
+        )}
+      </div>
+    </section>
+  );
 }

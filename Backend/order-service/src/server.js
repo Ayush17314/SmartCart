@@ -146,11 +146,28 @@ BusinessAudit.schema.index({ createdAt: -1, _id: -1 });
 app.use(cors({ origin: (process.env.CORS_ORIGIN || "http://localhost:3000").split(",").map((value) => value.trim()), credentials: true }));
 app.use(express.json({ limit: "100kb" }));
 app.use((req, res, next) => {
-    if (req.method === "GET") res.set("Cache-Control", req.path === "/health" ? "no-store" : "private, no-cache");
+    req.requestId = req.get("X-Request-Id") || crypto.randomUUID();
+    res.set("X-Request-Id", req.requestId);
+    if (req.method === "GET" || req.method === "HEAD") res.set("Cache-Control", req.path === "/health" ? "no-store" : "private, no-cache");
     next();
 });
 
+const escapeXml = (value) => String(value ?? "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" })[c]);
+const xmlTag = (value) => String(value).replace(/[^a-zA-Z0-9_.-]/g, "_") || "item";
+const toXml = (value, tag = "item") => {
+    const safeTag = xmlTag(tag);
+    if (value === null || value === undefined) return `<${safeTag}/>`;
+    if (Array.isArray(value)) return value.map((entry) => toXml(entry, "item")).join("");
+    if (typeof value === "object") return `<${safeTag}>${Object.entries(value).map(([key, entry]) => toXml(entry, key)).join("")}</${safeTag}>`;
+    return `<${safeTag}>${escapeXml(value)}</${safeTag}>`;
+};
+const asXml = (result) => `<?xml version="1.0" encoding="UTF-8"?>${toXml(result, "response")}`;
+
 function sendData(res, data, statusCode = 200) {
+    res.vary("Accept");
+    if (res.req && res.req.accepts && res.req.accepts(["json", "xml"]) === "xml") {
+        return res.status(statusCode).type("application/xml").send(asXml({ success: true, data }));
+    }
     return res.status(statusCode).json({ success: true, data });
 }
 
@@ -160,7 +177,7 @@ function sendError(res, error) {
         statusCode = 400;
     }
     const message = statusCode >= 500 ? "Internal server error" : error.message;
-    return res.status(statusCode).json({ success: false, message });
+    return res.status(statusCode).json({ success: false, message, requestId: res.getHeader("X-Request-Id") || (res.req && res.req.requestId) });
 }
 
 async function authenticate(req, res, next) {
@@ -1064,7 +1081,7 @@ app.post("/api/orders/:id/return-complete", authenticate, requirePermission("ret
 
 app.use((error, req, res, next) => {
     if (error instanceof SyntaxError && "body" in error) {
-        return res.status(400).json({ success: false, message: "Invalid JSON" });
+        return res.status(400).json({ success: false, message: "Invalid JSON", requestId: res.getHeader("X-Request-Id") || req.requestId });
     }
     return sendError(res, error);
 });

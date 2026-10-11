@@ -4,6 +4,7 @@ require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env"
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const crypto = require("crypto");
 const axios = require("axios");
 
 const app = express();
@@ -12,6 +13,8 @@ const Schema = mongoose.Schema;
 app.use(cors({ origin: (process.env.CORS_ORIGIN || "http://localhost:3000").split(",").map((value) => value.trim()), credentials: true }));
 app.use(express.json({ limit: "100kb" }));
 app.use((req, res, next) => {
+  req.requestId = req.get("X-Request-Id") || crypto.randomUUID();
+  res.set("X-Request-Id", req.requestId);
   if (req.method === "GET" || req.method === "HEAD") {
     const publicProductPath = req.path === "/api/products" || req.path === "/api/products/search" || req.path.startsWith("/api/products/category/") || /^\/api\/products\/[a-f\d]{24}$/.test(req.path) || /^\/api\/products\/[a-f\d]{24}\/reviews$/.test(req.path);
     const publicPath = req.path === "/health" || req.path === "/api/settings/public" || publicProductPath;
@@ -25,13 +28,15 @@ const Model = (name, schema) =>
 
 const reply = (res, data, status = 200) => res.status(status).json({ success: true, data });
 const error = (res, err) => {
-  if (err.code === 11000) return res.status(409).json({ success: false, message: "A product with this SKU already exists" });
+  const requestId = res.getHeader("X-Request-Id") || res.req?.requestId;
+  if (err.code === 11000) return res.status(409).json({ success: false, message: "A product with this SKU already exists", requestId });
   if (err.name === "ValidationError" || err.name === "CastError") {
-    return res.status(400).json({ success: false, message: err.message });
+    return res.status(400).json({ success: false, message: err.message, requestId });
   }
   return res.status(err.status || 500).json({
     success: false,
     message: err.status ? err.message : "Internal server error",
+    requestId,
   });
 };
 
@@ -423,18 +428,6 @@ app.get("/api/products/:id/inventory-movements", auth, requirePermission("invent
   } catch (err) { return error(res, err); }
 });
 
-app.get("/api/products/:id", async (req, res) => {
-  try {
-    res.vary("Accept");
-    const product = await Product.findOne({ _id: req.params.id, archivedAt: null });
-    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
-    if (req.accepts(["json", "xml"]) === "xml") return res.type("application/xml").send(asXml({ success: true, data: product }));
-    return reply(res, product);
-  } catch (err) {
-    return error(res, err);
-  }
-});
-
 app.get("/api/products/admin", auth, requirePermission("products.write"), async (req, res) => {
   try {
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
@@ -530,6 +523,18 @@ app.get("/api/products/admin/audit", auth, requirePermission("audit.read"), asyn
     const events = await ProductAuditEvent.find().sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
     return reply(res, events);
   } catch (err) { return error(res, err); }
+});
+
+app.get("/api/products/:id", async (req, res) => {
+  try {
+    res.vary("Accept");
+    const product = await Product.findOne({ _id: req.params.id, archivedAt: null });
+    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
+    if (req.accepts(["json", "xml"]) === "xml") return res.type("application/xml").send(asXml({ success: true, data: product }));
+    return reply(res, product);
+  } catch (err) {
+    return error(res, err);
+  }
 });
 
 const writableFields = ["name", "sku", "description", "price", "category", "brand", "images", "stock", "rating", "specifications"];
@@ -723,7 +728,7 @@ app.patch("/api/products/:id/stock", inventoryWrite, async (req, res) => {
 
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && Object.hasOwn(err, "body")) {
-    return res.status(400).json({ success: false, message: "Invalid JSON" });
+    return res.status(400).json({ success: false, message: "Invalid JSON", requestId: res.getHeader("X-Request-Id") || req.requestId });
   }
   return error(res, err);
 });

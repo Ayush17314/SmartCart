@@ -33,6 +33,11 @@ describe("SmartCart API gateway", () => {
                 });
                 return;
             }
+            if ((req.headers.accept || "").includes("application/xml") || (req.headers.accept || "").includes("text/xml")) {
+                res.setHeader("Content-Type", "application/xml");
+                res.end("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response><success>true</success></response>");
+                return;
+            }
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ success: true, data: { items: [{ _id: "p1", name: "Desk lamp", price: 20, category: "home", stock: 4 }], pagination: { nextCursor: null }, links: { next: null } } }));
         });
@@ -124,4 +129,25 @@ describe("SmartCart API gateway", () => {
         await expect(fail()).rejects.toThrow("offline");
         await expect(fail()).rejects.toBeInstanceOf(CircuitOpenError);
     });
+
+    test("negotiates XML when client requests Accept application/xml", async () => {
+        const response = await request(app)
+            .get("/v1/api/products?limit=1")
+            .set("Accept", "application/xml")
+            .expect(200);
+        expect(response.headers["content-type"]).toMatch(/application\/xml/);
+        expect(response.text).toContain("<?xml");
+    });
+
+    test("enforces uniform error envelope with requestId across 400, 401, and 404", async () => {
+        const bad400 = await request(app).post("/api/products").set("Idempotency-Key", "bad").send({}).expect(400);
+        expect(bad400.body).toMatchObject({ success: false, message: expect.any(String), requestId: expect.any(String) });
+
+        const unauth401 = await request(app).get("/api/cart").expect(401);
+        expect(unauth401.body).toMatchObject({ success: false, message: "Authentication required", requestId: expect.any(String) });
+
+        const missing404 = await request(app).get("/api/nonexistent-endpoint").expect(404);
+        expect(missing404.body).toMatchObject({ success: false, message: "Route not found", requestId: expect.any(String) });
+    });
 });
+

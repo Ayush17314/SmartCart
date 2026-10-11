@@ -1,4 +1,4 @@
-import type { Cart, NotificationRecord, Order, OrderQuote, OrderReport, PageResult, PaymentCheckout, PaymentReconciliation, Product, Promotion, Review, StoreSettings, User, UserRole } from "@/lib/types";
+import type { Cart, NotificationRecord, Order, OrderQuote, OrderReport, PageResult, PaymentCheckout, PaymentReconciliation, Product, Promotion, Review, SavedAddress, StoreSettings, User, UserRole } from "@/lib/types";
 
 type ApiResult<T> = { success: boolean; data: T; message?: string; pagination?: PageResult<unknown>["pagination"] };
 export class ApiError extends Error { constructor(message: string, public status: number) { super(message); this.name = "ApiError"; } }
@@ -65,7 +65,7 @@ export const api = {
   adminNotifications: (query: string) => requestPage<NotificationRecord[]>(`/api/notifications?${query}`),
   retryNotification: (id: string) => request<{ id: string; status: string }>(`/api/notifications/${encodeURIComponent(id)}/retry`, { method: "POST", body: JSON.stringify({}) }),
   profile: () => request<User>("/api/auth/profile"),
-  updateProfile: (body: { name: string; phone?: string; address?: Record<string, string> }) => request<User>("/api/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
+  updateProfile: (body: { name?: string; phone?: string; address?: Record<string, string>; addresses?: SavedAddress[] }) => request<User>("/api/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
   adminCustomerSummary: () => request<{ customers: number; newCustomers30d: number }>("/api/auth/admin/summary"),
   adminOrderSummary: (days = 30) => request<{ totalOrders: number; pendingShipments: number; pendingReturns: number; paidOrders: number; pendingPayments: number; failedPayments: number; refundedPayments: number; grossSales: number; discounts: number; taxes: number; shipping: number; refunds: number; netSales: number; trendDays: number; trend: { _id: string; orders: number; sales: number }[] }>(`/api/orders/admin/summary?days=${days}`),
   adminTopProducts: (query = "") => request<{ productId: string; name: string; category: string; unitsSold: number; grossSales: number }[]>(`/api/orders/admin/top-products${query ? `?${query}` : ""}`),

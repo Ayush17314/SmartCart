@@ -1,10 +1,14 @@
 {
   "name": "SmartCart",
   "version": "1.0.0",
-  "description": "",
+  "description": "Amazon-inspired e-commerce microservices platform",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:backend": "npx concurrently -n auth,prod,cart,wish,order,pay,notif,gate -c blue,green,yellow,magenta,cyan,red,white,gray \"npm --prefix Backend/auth-service start\" \"npm --prefix Backend/product-service start\" \"npm --prefix Backend/cart-service start\" \"npm --prefix Backend/wishlist-service start\" \"npm --prefix Backend/order-service start\" \"npm --prefix Backend/payment-service start\" \"npm --prefix Backend/notification-service start\" \"npm --prefix Backend/api-gateway start\"",
+    "dev:backend": "npx concurrently -n auth,prod,cart,wish,order,pay,notif,gate -c blue,green,yellow,magenta,cyan,red,white,gray \"npm --prefix Backend/auth-service start\" \"npm --prefix Backend/product-service start\" \"npm --prefix Backend/cart-service start\" \"npm --prefix Backend/wishlist-service start\" \"npm --prefix Backend/order-service start\" \"npm --prefix Backend/payment-service start\" \"npm --prefix Backend/notification-service start\" \"npm --prefix Backend/api-gateway start\"",
+    "dev:frontend": "npm --prefix Frontend/smartcart-web run dev",
+    "dev": "npx concurrently -n backend,frontend -c cyan,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "test": "npm --prefix Backend/api-gateway test"
   },
   "keywords": [],
   "author": "",
