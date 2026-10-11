@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env") });
 const express=require("express"),mongoose=require("mongoose"),cors=require("cors");
 const app=express();app.use(cors({origin:(process.env.CORS_ORIGIN||"http://localhost:3000").split(",").map(x=>x.trim()),credentials:true}));app.use(express.json({limit:"100kb"}));app.use((q,s,n)=>{if(q.method==="GET")s.set("Cache-Control",q.path==="/health"?"no-store":"private, no-cache");n()});const S=mongoose.Schema;
 const Model=(name,schema)=>mongoose.models[name]||mongoose.model(name,new S(schema,{timestamps:true}));

@@ -27,7 +27,7 @@ services:
       PORT: 4001
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_auth
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_EXCHANGE_SECRET: ${AUTH_EXCHANGE_SECRET:-local-auth-exchange-secret-change-me}
       NOTIFICATION_SERVICE_SECRET: ${NOTIFICATION_SERVICE_SECRET:-local-notification-secret-change-me}
@@ -52,7 +52,7 @@ services:
       PORT: 4002
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_products
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_SERVICE_URL: http://auth-service:4001
       INVENTORY_SERVICE_SECRET: ${INVENTORY_SERVICE_SECRET:-local-inventory-service-secret-change-me}
@@ -71,7 +71,7 @@ services:
       PORT: 4003
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_cart
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_SERVICE_URL: http://auth-service:4001
       PRODUCT_SERVICE_URL: http://product-service:4002
@@ -86,7 +86,7 @@ services:
       PORT: 4004
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_wishlist
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_SERVICE_URL: http://auth-service:4001
       PRODUCT_SERVICE_URL: http://product-service:4002
@@ -101,7 +101,7 @@ services:
       PORT: 4005
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_orders
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_SERVICE_URL: http://auth-service:4001
       INVENTORY_SERVICE_SECRET: ${INVENTORY_SERVICE_SECRET:-local-inventory-service-secret-change-me}
@@ -118,7 +118,7 @@ services:
     environment:
       PORT: 4006
       NODE_ENV: ${NODE_ENV:-development}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_payments
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_SERVICE_URL: http://auth-service:4001
       PRODUCT_SERVICE_URL: http://product-service:4002
@@ -143,7 +143,7 @@ services:
       PORT: 4007
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGO_URI: mongodb://mongodb:27017/smartcart_notifications
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       AUTH_SERVICE_URL: http://auth-service:4001
       NOTIFICATION_SERVICE_SECRET: ${NOTIFICATION_SERVICE_SECRET:-local-notification-secret-change-me}

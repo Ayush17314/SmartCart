@@ -20,7 +20,8 @@ uses MySQL for durable gateway idempotency and request audit rows.
 
 ## Run locally
 
-1. Start MongoDB.
+1. Set the shared `MONGODB_URI` in `Backend/.env` to Atlas or your local MongoDB
+   URI. Each service selects its own database name with `MONGODB_DB`.
 2. Copy each service's `.env.example` to `.env` and set a strong shared
    `JWT_SECRET`. Set the same `AUTH_EXCHANGE_SECRET` for the Next.js server,
    Gateway, and Auth Service, and the same `INVENTORY_SERVICE_SECRET` for Order
@@ -28,8 +29,8 @@ uses MySQL for durable gateway idempotency and request audit rows.
 3. Run `npm install` and then `npm start` in each service directory.
 4. Send requests through `http://localhost:4000`.
 
-To start the complete stack with Docker Compose, copy `.env.example` to `.env`
-and run `docker compose up --build` from this directory. Set the JWT, SQL, and
+To start the complete stack with Docker Compose, copy `.env.example` to `.env`,
+set `MONGODB_URI`, then run `docker compose up --build` from this directory. Set the JWT, SQL, and
 Razorpay secrets before using the stack outside local development. The Compose
 fallback secrets are for development only. API docs are served at `/docs` and
 the handwritten specification at `/openapi.json`.
