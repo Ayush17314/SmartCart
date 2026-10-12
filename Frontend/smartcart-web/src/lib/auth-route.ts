@@ -8,7 +8,7 @@ async function forward(request: NextRequest, action: string) {
   try {
     const response = await fetch(`${upstream()}/api/auth/${action}`, {
       method: request.method,
-      headers: { "Content-Type": "application/json", ...(["login", "customer-login", "staff-login", "super-admin-login", "super-admin-verify"].includes(action) ? { "X-Auth-Exchange-Secret": authExchangeSecret() } : {}) },
+      headers: { "Content-Type": "application/json", ...(["login", "customer-login", "staff-login", "super-admin-login", "super-admin-verify", "google-login"].includes(action) ? { "X-Auth-Exchange-Secret": authExchangeSecret() } : {}) },
       ...(request.method === "GET" ? {} : { body: await request.text() }),
       cache: "no-store",
     });
@@ -42,6 +42,10 @@ async function exchangeLogin(request: NextRequest, action: string) {
 export async function login(request: NextRequest, audience: "customer" | "staff" | "super_admin" = "customer") {
   const action = audience === "staff" ? "staff-login" : audience === "super_admin" ? "super-admin-login" : "customer-login";
   return exchangeLogin(request, action);
+}
+
+export async function googleLogin(request: NextRequest) {
+  return exchangeLogin(request, "google-login");
 }
 
 export async function verifySuperAdminLogin(request: NextRequest) {

@@ -54,7 +54,7 @@ const graphqlSchema = buildSchema(`
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-    origin: (process.env.CORS_ORIGIN || "http://localhost:3000").split(",").map((value) => value.trim()),
+    origin: (process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:3001").split(",").map((value) => value.trim()),
     credentials: true,
 }));
 app.use((req, res, next) => {
@@ -186,7 +186,7 @@ async function proxyRequest(config, req, res, next) {
                 accept: req.get("Accept") || "application/json",
                 "content-type": req.get("Content-Type") || "application/json",
                 authorization: req.get("Authorization") || "",
-                ...(["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify"].includes(req.apiPath) && authExchangeAuthorized(req) ? { "x-auth-exchange-secret": process.env.AUTH_EXCHANGE_SECRET || "local-auth-exchange-secret-change-me" } : {}),
+                ...(["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify", "/api/auth/google-login"].includes(req.apiPath) && authExchangeAuthorized(req) ? { "x-auth-exchange-secret": process.env.AUTH_EXCHANGE_SECRET || "local-auth-exchange-secret-change-me" } : {}),
                 "idempotency-key": req.get("Idempotency-Key") || "",
                 "x-request-id": req.requestId,
                 "if-none-match": req.get("If-None-Match") || "",
@@ -212,7 +212,7 @@ async function proxyRequest(config, req, res, next) {
         }
         if (contentType.includes("application/xml") || contentType.includes("text/xml")) return res.type("application/xml").send(payload);
         if (contentType.includes("application/json")) {
-            if (["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify"].includes(req.apiPath)) {
+            if (["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify", "/api/auth/google-login"].includes(req.apiPath)) {
                 let loginBody;
                 try { loginBody = JSON.parse(payload); } catch { loginBody = null; }
                 if (loginBody?.data?.token && !authExchangeAuthorized(req)) delete loginBody.data.token;

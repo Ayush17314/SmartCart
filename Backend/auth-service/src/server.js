@@ -1,7 +1,14 @@
 require("dotenv").config();
 require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env") });
 
+const rawDns = require("dns");
+try {
+  const nonLocalDns = rawDns.getServers().filter((s) => s !== "127.0.0.1" && s !== "::1");
+  rawDns.setServers(["8.8.8.8", "1.1.1.1", ...nonLocalDns]);
+} catch {}
+
 const crypto = require("crypto");
+const dns = rawDns.promises;
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -29,6 +36,7 @@ const User = mongoose.models.User || mongoose.model("User", new Schema({
   role: { type: String, enum: ROLES, default: "customer" },
   isActive: { type: Boolean, default: true, index: true },
   emailVerified: { type: Boolean, default: false, index: true },
+  googleId: { type: String, index: true },
   tokenVersion: { type: Number, default: 0 },
   address: Schema.Types.Mixed,
   addresses: { type: [Schema.Types.Mixed], default: [] },
@@ -226,6 +234,28 @@ app.get("/api/auth/session", authenticate, async (req, res) => {
   return reply(res, { user: req.user });
 });
 
+async function verifyRealEmailDomain(email) {
+  const parts = String(email || "").split("@");
+  if (parts.length !== 2 || !parts[1]) return false;
+  const domain = parts[1].toLowerCase();
+  if (domain === "smartcart.com") return true;
+  if (["example.com", "test.com", "invalid", "localhost"].includes(domain) || domain.endsWith(".invalid") || domain.endsWith(".test")) {
+    return false;
+  }
+  try {
+    const mx = await Promise.race([
+      dns.resolveMx(domain),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("DNS_TIMEOUT")), 2500)),
+    ]);
+    return Array.isArray(mx) && mx.length > 0 && mx.some((record) => record && record.exchange);
+  } catch (err) {
+    if (err && (err.code === "ENOTFOUND" || err.code === "ENODATA" || err.code === "ESERVFAIL")) {
+      return false;
+    }
+    return true;
+  }
+}
+
 app.post("/api/auth/register", authRateLimit({ max: 8 }), async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
@@ -233,6 +263,10 @@ app.post("/api/auth/register", authRateLimit({ max: 8 }), async (req, res) => {
     const password = String(req.body.password || "");
     if (name.length < 2 || name.length > 200 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 8 || password.length > 128) {
       return res.status(400).json({ success: false, message: "Enter a name, valid email, and password between 8 and 128 characters." });
+    }
+    const isRealDomain = await verifyRealEmailDomain(email);
+    if (!isRealDomain) {
+      return res.status(400).json({ success: false, message: "Please enter a real, active email address with a valid mail server." });
     }
     const rawToken = randomToken();
     const user = await User.create({
@@ -282,10 +316,18 @@ app.post("/api/auth/resend-verification", authRateLimit({ max: 5 }), async (req,
 
 async function handleLogin(req, res, audience) {
   const email = normalizedEmail(req.body.email);
+  const isRealDomain = await verifyRealEmailDomain(email);
+  if (!isRealDomain) {
+    return res.status(400).json({ success: false, message: "Please enter a real, verified email address." });
+  }
   const user = await User.findOne({ email }).select("+password");
   const passwordMatches = await bcrypt.compare(String(req.body.password || ""), user?.password || dummyPasswordHash);
   const audienceMatches = user && portalAllowsRole(audience, user.role);
   const action = `${audience}.login`;
+  if (user && passwordMatches && user.isActive && !user.emailVerified) {
+    await audit(req, action, "failure", String(user._id), null, { reason: "email unverified" });
+    return res.status(403).json({ success: false, code: "EMAIL_UNVERIFIED", message: "Please verify your email address before signing in. Use the Verify email link below if you need a new verification link." });
+  }
   if (user && passwordMatches && user.isActive && user.emailVerified && !audienceMatches) {
     await audit(req, action, "failure", String(user._id), null, { reason: "portal mismatch" });
     return res.status(403).json({ success: false, code: "PORTAL_MISMATCH", message: "This account cannot access the selected portal. Please choose the correct login option." });
@@ -321,6 +363,116 @@ app.post("/api/auth/login", authRateLimit({ max: 8 }), async (req, res) => handl
 app.post("/api/auth/customer-login", authRateLimit({ max: 8 }), async (req, res) => handleLogin(req, res, "customer"));
 app.post("/api/auth/staff-login", authRateLimit({ max: 8 }), async (req, res) => handleLogin(req, res, "staff"));
 app.post("/api/auth/super-admin-login", authRateLimit({ max: 8 }), async (req, res) => handleLogin(req, res, "super_admin"));
+
+app.post("/api/auth/google-login", authRateLimit({ max: 12 }), async (req, res) => {
+  const portal = String(req.body.portal || "customer").trim();
+  const credential = String(req.body.credential || "").trim();
+  if (portal === "super_admin") {
+    return res.status(403).json({ success: false, message: "Google Sign-In is disabled for Super Admin accounts. Please use your email, password, and 2-step verification." });
+  }
+  if (!["customer", "staff"].includes(portal)) {
+    return res.status(400).json({ success: false, message: "Invalid login portal." });
+  }
+  if (!credential) {
+    return res.status(400).json({ success: false, message: "Google sign-in credential is required." });
+  }
+  const configuredClientId = String(process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "").trim();
+  if (!configuredClientId) {
+    return res.status(503).json({ success: false, message: "Google Sign-In is not configured yet. Set GOOGLE_CLIENT_ID in Backend/.env and NEXT_PUBLIC_GOOGLE_CLIENT_ID in Frontend/smartcart-web/.env.local." });
+  }
+  let tokenInfo;
+  try {
+    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!verifyRes.ok) {
+      return res.status(401).json({ success: false, message: "Google token verification failed. Please try signing in again." });
+    }
+    tokenInfo = await verifyRes.json();
+  } catch {
+    return res.status(503).json({ success: false, message: "Could not reach Google authentication servers. Please try again." });
+  }
+
+  if (
+    !tokenInfo ||
+    tokenInfo.aud !== configuredClientId ||
+    !["accounts.google.com", "https://accounts.google.com"].includes(tokenInfo.iss)
+  ) {
+    return res.status(401).json({ success: false, message: "Invalid Google authentication token." });
+  }
+
+  const emailVerifiedByGoogle = tokenInfo.email_verified === true || tokenInfo.email_verified === "true";
+  const email = normalizedEmail(tokenInfo.email);
+  if (!email || !emailVerifiedByGoogle) {
+    return res.status(403).json({ success: false, message: "Your Google email address must be verified by Google before signing in." });
+  }
+  const isRealDomain = await verifyRealEmailDomain(email);
+  if (!isRealDomain) {
+    return res.status(403).json({ success: false, message: "This email domain is not a valid active mail domain." });
+  }
+
+  let user = await User.findOne({ email });
+  if (user && user.role === "super_admin") {
+    await audit(req, `${portal}.google_login`, "failure", String(user._id), null, { reason: "super_admin blocked from google login" });
+    return res.status(403).json({ success: false, message: "Super Admin accounts cannot sign in with Google." });
+  }
+
+  if (portal === "staff") {
+    if (!user) {
+      await audit(req, "staff.google_login", "failure", null, null, { email, reason: "no staff account" });
+      return res.status(403).json({ success: false, message: "No Store Manager or Staff account was found for this Google email. Ask your Super Admin to invite this email in Staff Access first." });
+    }
+    if (!portalAllowsRole("staff", user.role)) {
+      await audit(req, "staff.google_login", "failure", String(user._id), null, { reason: "portal mismatch" });
+      return res.status(403).json({ success: false, message: "This Google account is a Customer account. Please switch to the Customer tab to sign in." });
+    }
+    if (!user.isActive) {
+      await audit(req, "staff.google_login", "failure", String(user._id), null, { reason: "inactive" });
+      return res.status(403).json({ success: false, message: "This staff account has been suspended." });
+    }
+    if (!user.emailVerified || !user.googleId || user.staffInviteTokenHash) {
+      user.emailVerified = true;
+      user.googleId = String(tokenInfo.sub || "");
+      user.staffInviteTokenHash = undefined;
+      user.staffInviteExpiresAt = undefined;
+      await user.save();
+    }
+  } else {
+    // portal === "customer"
+    if (!user) {
+      const displayName = String(tokenInfo.name || email.split("@")[0] || "Customer").trim().slice(0, 200);
+      user = await User.create({
+        name: displayName.length >= 2 ? displayName : "Customer",
+        email,
+        password: await bcrypt.hash(randomToken(), 12),
+        role: "customer",
+        isActive: true,
+        emailVerified: true,
+        googleId: String(tokenInfo.sub || ""),
+        tokenVersion: 0,
+      });
+    } else {
+      if (!portalAllowsRole("customer", user.role)) {
+        await audit(req, "customer.google_login", "failure", String(user._id), null, { reason: "portal mismatch" });
+        return res.status(403).json({ success: false, message: "This Google email belongs to a Store Staff or Manager account. Please switch to the Store Staff tab to sign in." });
+      }
+      if (!user.isActive) {
+        await audit(req, "customer.google_login", "failure", String(user._id), null, { reason: "inactive" });
+        return res.status(403).json({ success: false, message: "This account has been suspended." });
+      }
+      if (!user.emailVerified || !user.googleId) {
+        user.emailVerified = true;
+        user.googleId = String(tokenInfo.sub || "");
+        user.emailVerificationTokenHash = undefined;
+        user.emailVerificationExpiresAt = undefined;
+        await user.save();
+      }
+    }
+  }
+
+  await audit(req, `${portal}.google_login`, "success", String(user._id), String(user._id));
+  return reply(res, { user: safeUser(user), ...(authExchangeAuthorized(req) ? { token: tokenFor(user) } : {}) });
+});
 
 app.post("/api/auth/super-admin-verify", authRateLimit({ max: 8 }), async (req, res) => {
   const challengeId = String(req.body.challengeId || "");
@@ -422,6 +574,8 @@ app.post("/api/auth/users/invite", authRateLimit({ max: 10 }), authenticate, req
   const email = normalizedEmail(req.body.email);
   const role = String(req.body.role || "");
   if (name.length < 2 || name.length > 200 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ success: false, message: "Enter a name and valid email address." });
+  const domainCheck = await verifyRealEmailDomain(email);
+  if (!domainCheck.valid) return res.status(400).json({ success: false, message: domainCheck.reason });
   if (!["support", "inventory_staff", "admin", "super_admin"].includes(role)) return res.status(400).json({ success: false, message: "Choose a valid staff role." });
   if (role === "super_admin" && req.user.role !== "super_admin") return res.status(403).json({ success: false, message: "Only a Super Admin can invite another Super Admin." });
   const rawToken = randomToken();

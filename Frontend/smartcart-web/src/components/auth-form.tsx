@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,35 @@ type Portal = "customer" | "staff" | "super_admin";
 type Props = { mode: "login" | "register"; audience?: Portal };
 type Values = { name?: string; email: string; password: string };
 
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+            ux_mode?: "popup" | "redirect";
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              text?: "signin_with" | "signup_with" | "continue_with";
+              shape?: "rectangular" | "pill";
+              width?: number;
+            }
+          ) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || "";
+
 export function AuthForm({ mode, audience = "customer" }: Props) {
   const router = useRouter();
   const params = useSearchParams();
@@ -26,10 +55,125 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
   const [mfaChallengeId, setMfaChallengeId] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [developmentCodePreview, setDevelopmentCodePreview] = useState("");
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [googleSdkReady, setGoogleSdkReady] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+
+  const allowGoogleAuth = audience !== "super_admin" && !mfaChallengeId;
+
   const schema = mode === "login" ? loginSchema : registerSchema;
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Values>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<Values>({
     resolver: zodResolver(schema) as Resolver<Values>,
   });
+
+  const redirectAfterSignIn = useCallback(
+    async (user?: { permissions?: string[] }) => {
+      await qc.invalidateQueries();
+      toast.success("Signed in successfully");
+      const next = params.get("next");
+      const fallback =
+        audience === "customer"
+          ? "/products"
+          : audience === "super_admin"
+          ? "/super-admin/dashboard"
+          : user?.permissions?.includes("analytics.read")
+          ? "/admin"
+          : user?.permissions?.includes("orders.read_all")
+          ? "/admin/orders"
+          : "/admin/products";
+      const safeNext =
+        next !== null &&
+        next.startsWith("/") &&
+        !next.startsWith("//") &&
+        !next.includes("\\") &&
+        (audience === "customer"
+          ? !next.startsWith("/admin") && !next.startsWith("/super-admin")
+          : audience === "staff"
+          ? next.startsWith("/admin") && !next.startsWith("/admin/login")
+          : next.startsWith("/super-admin/") || next.startsWith("/admin/"));
+      router.replace(safeNext ? next : fallback);
+      router.refresh();
+    },
+    [audience, params, qc, router]
+  );
+
+  const handleGoogleCredential = useCallback(
+    async (credential?: string) => {
+      if (!credential || audience === "super_admin") return;
+      setRequestError("");
+      setRequestNotice("");
+      setVerificationPreview("");
+      setGoogleSubmitting(true);
+      try {
+        const response = await fetch("/api/auth/google-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential, portal: audience }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.success) {
+          setRequestError(
+            body.message || "Google sign-in failed. Please make sure your Google account email is verified."
+          );
+          return;
+        }
+        await redirectAfterSignIn(body.data?.user);
+      } catch {
+        setRequestError("Unable to complete Google sign-in right now. Please try again.");
+      } finally {
+        setGoogleSubmitting(false);
+      }
+    },
+    [audience, redirectAfterSignIn]
+  );
+
+  useEffect(() => {
+    if (!allowGoogleAuth || !GOOGLE_CLIENT_ID) return;
+
+    const initializeGoogleButton = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (res) => {
+          void handleGoogleCredential(res.credential);
+        },
+        ux_mode: "popup",
+      });
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        text: mode === "register" ? "signup_with" : "continue_with",
+        shape: "pill",
+        width: googleButtonRef.current.clientWidth || 360,
+      });
+      setGoogleSdkReady(true);
+    };
+
+    if (window.google?.accounts?.id) {
+      initializeGoogleButton();
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://accounts.google.com/gsi/client"]'
+    );
+    if (existingScript) {
+      existingScript.addEventListener("load", initializeGoogleButton);
+      return () => existingScript.removeEventListener("load", initializeGoogleButton);
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogleButton;
+    document.head.appendChild(script);
+  }, [allowGoogleAuth, handleGoogleCredential, mode]);
 
   const onSubmit = async (values: Values) => {
     setRequestError("");
@@ -75,32 +219,7 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
         return;
       }
 
-      await qc.invalidateQueries();
-      toast.success("Signed in successfully");
-      const next = params.get("next");
-      const user = body.data?.user;
-      const fallback =
-        audience === "customer"
-          ? "/products"
-          : audience === "super_admin"
-          ? "/super-admin/dashboard"
-          : user?.permissions?.includes("analytics.read")
-          ? "/admin"
-          : user?.permissions?.includes("orders.read_all")
-          ? "/admin/orders"
-          : "/admin/products";
-      const safeNext =
-        next !== null &&
-        next.startsWith("/") &&
-        !next.startsWith("//") &&
-        !next.includes("\\") &&
-        (audience === "customer"
-          ? !next.startsWith("/admin") && !next.startsWith("/super-admin")
-          : audience === "staff"
-          ? next.startsWith("/admin") && !next.startsWith("/admin/login")
-          : next.startsWith("/super-admin/") || next.startsWith("/admin/"));
-      router.replace(safeNext ? next : fallback);
-      router.refresh();
+      await redirectAfterSignIn(body.data?.user);
     } catch {
       setRequestError("Unable to connect right now. Please check your network and try again.");
     }
@@ -110,6 +229,54 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {allowGoogleAuth && (
+        <div className="space-y-3">
+          {GOOGLE_CLIENT_ID ? (
+            <div className="space-y-1.5">
+              <div
+                ref={googleButtonRef}
+                className="flex min-h-[42px] w-full items-center justify-center"
+              />
+              {!googleSdkReady && (
+                <button
+                  type="button"
+                  disabled
+                  className="flex w-full items-center justify-center gap-2.5 rounded-full border border-ink/15 bg-white px-4 py-2.5 text-xs font-semibold text-ink/70"
+                >
+                  <GoogleIcon />
+                  Loading Google Sign-In...
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={googleSubmitting}
+              onClick={() => {
+                setRequestError(
+                  "Google Sign-In requires NEXT_PUBLIC_GOOGLE_CLIENT_ID in Frontend/smartcart-web/.env.local and GOOGLE_CLIENT_ID in Backend/.env."
+                );
+              }}
+              className="flex w-full items-center justify-center gap-2.5 rounded-full border border-ink/15 bg-white px-4 py-2.5 text-xs font-semibold text-ink transition hover:bg-stone-50"
+            >
+              <GoogleIcon />
+              {mode === "register"
+                ? "Sign up with Google"
+                : audience === "staff"
+                ? "Continue with Google (Store Manager & Staff)"
+                : "Continue with Google"}
+            </button>
+          )}
+          <div className="relative flex items-center py-1">
+            <div className="flex-grow border-t border-ink/10" />
+            <span className="mx-3 flex-shrink text-[11px] font-medium uppercase tracking-wider text-ink/45">
+              or {mode === "register" ? "register with email" : "sign in with email"}
+            </span>
+            <div className="flex-grow border-t border-ink/10" />
+          </div>
+        </div>
+      )}
+
       {!mfaChallengeId && mode === "register" && (
         <Field label="Full name" error={errors.name?.message} id="name">
           <input
@@ -140,7 +307,7 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
             autoComplete="email"
             inputMode="email"
             className="field"
-            placeholder="name@example.com"
+            placeholder="name@gmail.com"
           />
         </Field>
       )}
@@ -221,7 +388,7 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
           Click here to verify your email address →
         </a>
       )}
-      <Button className="w-full" disabled={isSubmitting}>
+      <Button className="w-full" disabled={isSubmitting || googleSubmitting}>
         {isSubmitting
           ? mfaChallengeId
             ? "Verifying..."
@@ -259,6 +426,29 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
         </div>
       )}
     </form>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.4c-.2 1.2-.9 2.3-2 3l3.2 2.5c1.9-1.7 3-4.3 3-7.4 0-.7-.1-1.4-.2-2H12z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1l-3.3 2.5C4.8 19.7 8.1 22 12 22z"
+      />
+      <path
+        fill="#4A90E2"
+        d="M6.4 13.9c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.1 7.6C2.4 9 2 10.4 2 12s.4 3 1.1 4.4l3.3-2.5z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 3 14.7 2 12 2 8.1 2 4.8 4.3 3.1 7.6l3.3 2.5c.8-2.3 3-4.2 5.6-4.2z"
+      />
+    </svg>
   );
 }
 
