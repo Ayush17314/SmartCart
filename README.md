@@ -2,7 +2,10 @@
 
 SmartCart is an Amazon-inspired e-commerce web platform engineered with a **polyglot microservices backend** and a modern **Next.js 15 App Router frontend**. The backend utilizes Node.js, Express, MongoDB (Atlas/Local), and MySQL, decoupled through an intelligent API Gateway supporting both REST and GraphQL.
 
-## TeamID 03
+## Group ID: 03 (TeamID 03)
+
+**Google Drive Link:- [https://drive.google.com/drive/folders/1q9IY8r2_aUCeogiUsT0tpODwt3hF6PHL?usp=sharing](https://drive.google.com/drive/folders/1q9IY8r2_aUCeogiUsT0tpODwt3hF6PHL?usp=sharing)**  
+**Github Repo Link:- [https://github.com/Ayush17314/SmartCart-Group-03](https://github.com/Ayush17314/SmartCart-Group-03)**
 
 | Name | Roll no. |
 | --- | --- |
