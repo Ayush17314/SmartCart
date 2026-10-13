@@ -10,6 +10,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./openapi");
 const { validateBody } = require("./schemas");
 const { CircuitBreaker, retryWithBackoff } = require("./resilience");
+const { problem } = require("./problem");
 const sqlStore = require("./sql-store");
 
 const app = express();
@@ -56,6 +57,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
     origin: (process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:3001").split(",").map((value) => value.trim()),
     credentials: true,
+    preflightContinue: true,
 }));
 app.use((req, res, next) => {
     req.requestId = req.get("X-Request-Id") || crypto.randomUUID();
@@ -81,9 +83,34 @@ const apiRateLimit = rateLimit({
     limit: Number(process.env.RATE_LIMIT_MAX) || 120,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req, res) => res.status(429).json({ success: false, message: "Too many requests", requestId: req.requestId }),
+    handler: (req, res) => {
+        const retryAfterSeconds = Math.ceil((Number(process.env.RATE_LIMIT_WINDOW_MS) || 60_000) / 1000);
+        res.set("Retry-After", String(retryAfterSeconds));
+        return problem(res, {
+            type: "rate-limit-exceeded",
+            title: "Too Many Requests",
+            status: 429,
+            detail: `Rate limit of ${Number(process.env.RATE_LIMIT_MAX) || 120} requests exceeded. Please retry after ${retryAfterSeconds} seconds.`,
+            extra: { retryAfter: retryAfterSeconds },
+        });
+    },
 });
 app.use((req, res, next) => req.apiPath && req.apiPath.startsWith("/api") ? apiRateLimit(req, res, next) : next());
+
+app.use((req, res, next) => {
+    if (req.apiPath && req.apiPath.startsWith("/api") && req.get("Accept")) {
+        const accepts = req.accepts(["application/json", "application/xml", "text/xml", "application/problem+json", "*/*"]);
+        if (!accepts) {
+            return problem(res, {
+                type: "not-acceptable",
+                title: "Not Acceptable",
+                status: 406,
+                detail: "The requested media type in the Accept header is not supported. Supported representations are application/json and application/xml.",
+            });
+        }
+    }
+    next();
+});
 
 function expectedIdempotencyKey(req) {
     const key = req.get("Idempotency-Key");
@@ -190,6 +217,7 @@ async function proxyRequest(config, req, res, next) {
                 "idempotency-key": req.get("Idempotency-Key") || "",
                 "x-request-id": req.requestId,
                 "if-none-match": req.get("If-None-Match") || "",
+                "if-match": req.get("If-Match") || "",
                 "if-modified-since": req.get("If-Modified-Since") || "",
             },
             ...(upstreamMethod === "GET" || upstreamMethod === "HEAD" ? {} : { body: req.rawBody && req.apiPath === "/api/payments/webhook" ? req.rawBody : JSON.stringify(req.body) }),
@@ -200,7 +228,7 @@ async function proxyRequest(config, req, res, next) {
         }));
         res.status(response.status);
         response.headers.forEach((value, key) => {
-            if (["content-type", "etag", "last-modified", "cache-control", "link", "vary", "retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"].includes(key.toLowerCase())) res.set(key, value);
+            if (["content-type", "etag", "last-modified", "cache-control", "link", "vary", "retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset", "location", "allow"].includes(key.toLowerCase())) res.set(key, value);
         });
         if (req.method === "HEAD" || response.status === 304) return res.end();
         const contentType = response.headers.get("content-type") || "application/json";
@@ -208,7 +236,16 @@ async function proxyRequest(config, req, res, next) {
         if (!response.ok) {
             let upstreamError;
             try { upstreamError = JSON.parse(payload); } catch { upstreamError = null; }
-            return res.status(response.status).json({ success: false, message: upstreamError?.message || "Request failed", requestId: req.requestId });
+            if (contentType.includes("application/problem+json") && upstreamError) {
+                return res.status(response.status).type("application/problem+json").json(upstreamError);
+            }
+            return problem(res, {
+                status: response.status,
+                type: upstreamError?.type,
+                title: upstreamError?.title,
+                detail: upstreamError?.detail || upstreamError?.message || "Request failed",
+                errors: upstreamError?.errors,
+            });
         }
         if (contentType.includes("application/xml") || contentType.includes("text/xml")) return res.type("application/xml").send(payload);
         if (contentType.includes("application/json")) {
@@ -266,9 +303,41 @@ app.use((req, res, next) => {
     return idempotencyMiddleware(req, res, next);
 });
 
+app.options(["/api/orders", "/v1/api/orders"], (req, res) => {
+    res.set("Allow", "GET, POST, OPTIONS, HEAD");
+    return res.status(204).end();
+});
+app.options(["/api/orders/:id", "/v1/api/orders/:id"], (req, res) => {
+    res.set("Allow", "GET, PATCH, OPTIONS, HEAD");
+    return res.status(204).end();
+});
+app.options(["/api/orders/:id/status", "/v1/api/orders/:id/status"], (req, res) => {
+    res.set("Allow", "PATCH, OPTIONS");
+    return res.status(204).end();
+});
+app.options(["/api/products", "/v1/api/products"], (req, res) => {
+    res.set("Allow", "GET, POST, OPTIONS, HEAD");
+    return res.status(204).end();
+});
+app.options(["/api/products/:id", "/v1/api/products/:id"], (req, res) => {
+    res.set("Allow", "GET, PUT, DELETE, OPTIONS, HEAD");
+    return res.status(204).end();
+});
+app.options("*", (req, res) => {
+    res.set("Allow", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD");
+    return res.status(204).end();
+});
+
 app.use((req, res, next) => {
     if (protectedRoutePrefixes.some((prefix) => req.apiPath === prefix || req.apiPath.startsWith(`${prefix}/`))) {
-        if (!req.get("Authorization")) return res.status(401).json({ success: false, message: "Authentication required", requestId: req.requestId });
+        if (!req.get("Authorization")) {
+            return problem(res, {
+                type: "authentication-required",
+                title: "Unauthorized",
+                status: 401,
+                detail: "Authentication required",
+            });
+        }
     }
     next();
 });
@@ -281,7 +350,12 @@ for (const config of serviceConfigs) {
     }
 }
 
-app.use((req, res) => res.status(404).json({ success: false, message: "Route not found", requestId: req.requestId }));
+app.use((req, res) => problem(res, {
+    type: "not-found",
+    title: "Not Found",
+    status: 404,
+    detail: "Route not found",
+}));
 
 app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
@@ -289,7 +363,13 @@ app.use((error, req, res, next) => {
     if (error.name === "ValidationError" || error.name === "CastError") error.status = 400;
     const actualStatus = error.status || status;
     console.error(JSON.stringify({ level: "error", service: "api-gateway", requestId: req.requestId, method: req.method, path: req.originalUrl, status: actualStatus, error: error.message }));
-    res.status(actualStatus).json({ success: false, message: actualStatus >= 500 ? "Internal server error" : error.message, requestId: req.requestId });
+    return problem(res, {
+        status: actualStatus,
+        type: error.type,
+        title: error.title,
+        detail: actualStatus >= 500 ? "Internal server error" : error.message,
+        errors: error.errors,
+    });
 });
 
 module.exports = app;

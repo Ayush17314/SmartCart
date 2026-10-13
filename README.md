@@ -37,50 +37,58 @@ SmartCart/
 
 ---
 
-## 28 Web Services Engineering Checklist: Status & Implementation
+## Web Services Assignments: Implementation Checklist
 
-SmartCart incorporates the comprehensive 28-point enterprise backend and distributed systems engineering checklist. Below is the current implementation matrix and breakdown:
+Below is the verified implementation status organized assignment-wise across the SmartCart system:
 
-### Summary Scorecard
-* **Implemented:** 22 items
-* **Partial (Scoped by design):** 5 items
-* **Pending:** 1 item (*Live Cloud/Internet Deployment* — project is fully containerized for local Docker/Compose)
+### Assignment 1: HTTP by Hand & Project Setup
+- **Git Repository & Clean Setup:** Implemented (Git repository initialized with structured directories, .gitignore, and incremental commit history)
 
 ---
 
-### Detailed Implementation Matrix
+### Assignment 2: Design Project — Services, Contracts & Schema
+- **Service Boundaries & Isolation:** Implemented (8 independent microservices: Auth, Product, Cart, Wishlist, Order, Payment, Notification, API Gateway with strict domain separation)
+- **Service Operations & Orchestration (`placeOrder`):** Implemented (Order checkout orchestration calling Payment and Cart services with internal coordination hidden behind the API boundary)
+- **Database Schema Isolation:** Implemented (Zero shared database collections across services; each service owns its Mongoose schemas, and API Gateway owns its MySQL idempotency/audit store)
+- **Contract-Level Communication:** Implemented (All cross-service communication occurs exclusively via HTTP/REST and API Gateway routes, never direct DB access)
 
-| # | Checklist Requirement | Status | Component / Location | Description & Implementation Details |
-| :-: | :--- | :---: | :--- | :--- |
-| **1** | **HTTP Methods & Resource URLs** | 🔄 *Partial* | `api-gateway`, Domain Services | Public routes follow clean REST resource naming conventions (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`). The gateway exposes both `/api/*` and versioned `/v1/api/*` routes. Internal service adapters map specialized actions (e.g. cancellation) cleanly. |
-| **2** | **API Versioning (`/v1`)** | ✅ *Implemented* | `api-gateway/src/app.js` | The API Gateway exposes version-prefixed routes (e.g., `/v1/api/products`) with transparent URL rewriting to upstream services while maintaining backward compatibility with `/api/*`. |
-| **3** | **Durable Idempotency on POST** | ✅ *Implemented* | `api-gateway/src/sql-store.js`, MySQL | State-changing operations (orders, payments, returns, product creation) require an `Idempotency-Key` header. Requests and response payloads are recorded in MySQL (`api_idempotency`). Replayed keys return identical cached responses (`Idempotency-Replayed: true`); changed bodies return `409 Conflict`. |
-| **4** | **AJV JSON Schema Validation** | ✅ *Implemented* | `api-gateway/src/schemas.js` | Fast, pre-compiled AJV JSON schemas validate client request payloads at the Gateway boundary before traffic reaches upstream microservices. Malformed payloads are rejected immediately with `400 Bad Request`. |
-| **5** | **Rich HTTP Status Codes (≥ 8 Codes)** | ✅ *Implemented* | Across All Services | Exposes over 10 distinct, semantically correct HTTP status codes: `200 OK`, `201 Created`, `304 Not Modified`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `429 Too Many Requests`, `500 Server Error`, `502 Bad Gateway`, `503 Service Unavailable`, `504 Gateway Timeout`. |
-| **6** | **ETag & Conditional 304 Responses** | ✅ *Implemented* | `api-gateway`, `product-service` | Generates standard HTTP entity tags (ETags). The Gateway proxies `If-None-Match` headers upstream; when content is unmodified, returns `304 Not Modified` without transferring redundant payloads. |
-| **7** | **Content Negotiation (JSON & XML)** | 🔄 *Partial* | `product-service/src/server.js` | Product catalog endpoints inspect the `Accept` header. Supports both JSON (`application/json`) and XML (`application/xml`) serializations with `Vary: Accept` headers to prevent cache pollution. |
-| **8** | **Cursor-Based Pagination** | ✅ *Implemented* | `product-service`, `order-service` | Stable sequential cursor pagination using encoded timestamp/ID cursors (`after=<cursor>`). Responses return `pagination.nextCursor`, `links.next`, and RFC-5988 standard `Link: <...>; rel="next"` headers alongside classic offset pagination. |
-| **9** | **Declarative Cache-Control** | ✅ *Implemented* | `api-gateway`, `product-service` | Explicit HTTP caching directives: public catalog responses emit `Cache-Control: public, max-age=30, must-revalidate`; sensitive user and order routes emit `private, no-cache`; `/health` endpoints emit `no-store`. |
-| **10** | **Unified Error Envelope** | 🔄 *Partial* | `api-gateway/src/app.js` | Centralized gateway error handler normalizes errors into a predictable JSON structure: `{ "success": false, "message": "...", "requestId": "..." }`. Direct microservice calls preserve domain-specific errors. |
-| **11** | **Rate Limiting & 429 Headers** | ✅ *Implemented* | `api-gateway/src/app.js` | Built with `express-rate-limit`. Tracks sliding windows, emits standard `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers, and responds with `429 Too Many Requests` when limits are exceeded. |
-| **12** | **OpenAPI 3.0 & Swagger UI** | ✅ *Implemented* | `api-gateway/src/openapi.js` | Handcrafted OpenAPI 3.0 specification available at `GET /openapi.json`. Interactive documentation and live endpoint testing served via Swagger UI at `/docs`. |
-| **13** | **GraphQL Interface** | ✅ *Implemented* | `api-gateway/src/app.js` | GraphQL endpoint at `POST /graphql` (with GraphiQL explorer in non-production environments). Allows querying products by search, category, and cursor pagination alongside REST. |
-| **14** | **Relational Database (SQL)** | ✅ *Implemented* | MySQL 8.4 (`api-gateway`) | Parameterized SQL queries using `mysql2` prevent SQL injection. Manages durable idempotency states (`api_idempotency`) and durable audit trails (`api_request_audit`). |
-| **15** | **Document Database (NoSQL)** | ✅ *Implemented* | MongoDB 7 / Atlas | Domain microservices maintain independent MongoDB databases (`smartcart_auth`, `smartcart_products`, `smartcart_cart`, `smartcart_wishlist`, `smartcart_orders`, `smartcart_payments`, `smartcart_notifications`). |
-| **16** | **Outbound Request Timeouts** | ✅ *Implemented* | `api-gateway`, `order-service`, `payment-service` | Microservice HTTP calls enforce strict timeouts (`AbortSignal.timeout` on fetch, Axios `timeout: 3000ms - 8000ms`). Slow or unresponsive downstream services fail safely without consuming server sockets. |
-| **17** | **Exponential Backoff & Retries** | ✅ *Implemented* | `api-gateway/src/resilience.js` | Automated retry mechanism with increasing backoff delay (`retryWithBackoff`). Restricted strictly to idempotent `GET` and `HEAD` requests to prevent duplicate write mutations. |
-| **18** | **Circuit Breaker Pattern** | ✅ *Implemented* | `api-gateway/src/resilience.js` | Gateway monitors upstream service failures per host. Trips open after exceeding failure thresholds to fail fast, followed by timed probes to automatically heal when downstream services recover. |
-| **19** | **Strict CORS Allowlist** | ✅ *Implemented* | All backend services | Eliminates wildcards (`*`). Reads comma-separated origins from `CORS_ORIGIN` (default `http://localhost:3000`) with `credentials: true` for secure browser cross-origin requests. |
-| **20** | **Express Middleware Pipeline** | ✅ *Implemented* | All backend services | Multi-tiered middleware chain enforcing request parsing limits (`limit: "100kb"`), request ID stamping, custom CORS headers, security guards, and central exception formatting. |
-| **21** | **Structured Logging & Correlation IDs** | ✅ *Implemented* | `api-gateway`, All services | Generates or propagates `X-Request-Id` across all network hops. Emits machine-readable JSON logs (`level`, `service`, `requestId`, `method`, `status`, `durationMs`) for cross-service observability. |
-| **22** | **Secure JWT & BFF Architecture** | ✅ *Implemented* | `auth-service`, `Frontend/smartcart-web` | Next.js server proxies authentication using a server-only `AUTH_EXCHANGE_SECRET`. Browser clients hold only an **HTTP-only, 7-day secure cookie**; raw tokens are never exposed to client-side scripts. |
-| **23** | **Role-Based Access Control (RBAC)** | ✅ *Implemented* | `auth-service`, Domain Services | Granular permission model with distinct roles: `customer`, `staff`, `admin`, and `super-admin`. Permissions are verified dynamically on sensitive administration routes and portals. |
-| **24** | **Payment Gateway Integration** | ✅ *Implemented* | `payment-service` | Integrated with **Razorpay Orders** and Standard Checkout. Features HMAC-SHA256 signature verification, webhook handler (`payment.captured`, `payment.failed`), automated refunds, and offline Cash on Delivery (COD) support. |
-| **25** | **Transactional Notifications** | 🔄 *Partial* | `notification-service` | Event-driven transactional notifications for orders, shipments, returns, and security challenges. Supports Resend API integration, delivery queues, and a local mock email provider for development. SMS unconfigured. |
-| **26** | **Containerization & Orchestration** | ✅ *Implemented* | `docker-compose.yml`, Dockerfiles | Each microservice and database possesses optimized Dockerfiles. Orchestrated via `docker-compose.yml` with health checks, network bridges, and persistent volumes for local multi-service execution. |
-| **27** | **Twelve-Factor Configuration** | ✅ *Implemented* | Root & Service `.env.example` files | Complete decoupling of environment configuration. Database URIs, secrets, service endpoints, port bindings, and API keys are read from environment variables across dev, test, and production. |
-| **28** | **Automated Testing Suite** | ✅ *Implemented* | `api-gateway/tests/api.test.js` | Integration test suite using **Jest** and **Supertest**. Verifies route versioning, AJV rejections, idempotency replay, ETags, conditional 304, XML content negotiation, rate-limit headers, and circuit breaker behavior. |
-| *--* | *Live Cloud Deployment* | ⏳ *Pending* | Production Hosting | Prepared for containerized cloud deployment (AWS ECS, GCP Cloud Run, or Kubernetes). Local development runs seamlessly via Docker Compose. |
+---
+
+### Assignment 3: Integrate an External SOAP Partner
+- **External Payment Partner Integration:** Partially Implemented (Payment gateway integration exists with order creation, signature verification, and webhooks in payment-service, but implemented using REST/JSON rather than SOAP/XML)
+- **Partner WSDL Contract:** Not Implemented (No WSDL contract defining types, messages, portType, and SOAP HTTP binding exists)
+- **SOAP Envelopes & Fault Mapping:** Not Implemented (Service does not consume/produce raw SOAP XML envelopes or map SOAP 1.1/1.2 faults)
+
+---
+
+### Assignment 4: Rebuilding a Project Service in REST (Orders Service)
+- **Plural Resource Modeling:** Implemented (Plural, resource-oriented endpoints: `/api/orders`, `/api/orders/:id`, `/api/orders/:id/status`, `/api/orders/quote`)
+- **OpenAPI Contract Specification:** Implemented (OpenAPI spec defined in `api-gateway/src/openapi.js` and served interactively via Swagger UI at `/docs` and `/openapi.json`)
+- **REST Service Implementation:** Implemented (Implemented in Node.js/Express with input validation, distinct HTTP codes, and domain model mapping)
+- **Idempotency-Key on Order Creation:** Implemented (API Gateway enforces `Idempotency-Key`, stores initial responses in MySQL/memory, replays identical retries, and returns 409 on payload mismatches)
+- **Automated Service Tests:** Implemented (Automated test coverage using Jest/Supertest covering API Gateway, orders, promotions, payments, and notifications)
+- **Outbound Network Resilience to Payments:** Implemented (Outbound calls feature timeout protection via `AbortSignal.timeout`, retry with exponential backoff, and circuit breaker in `resilience.js`)
+
+---
+
+### Assignment 5: HTTP Methods & Headers
+- **HTTP Method Semantics & Filtering:** Implemented (Standard GET, POST, PATCH, and DELETE routing with query filters and pagination)
+- **OPTIONS Method & Allow Header:** Implemented (Explicit `OPTIONS` route handlers returning `204 No Content` and explicit `Allow` header implemented across API Gateway, Orders Service, and Product Service; CORS configured with `preflightContinue`)
+- **Bearer Authentication & Security Headers:** Implemented (JWT Bearer tokens required on protected routes, CORS allowlist enforced, and Helmet security headers enabled)
+- **Content Negotiation (Accept Header):** Implemented (Accept header negotiation across API Gateway, Product Service, and Orders Service supporting `application/json` and `application/xml` with `Vary: Accept`; unsupported Accept headers rejected with `406 Not Acceptable`)
+- **ETag Caching & Conditional 304:** Implemented (Dynamic ETags generated on GET requests for single items across Products and Orders; `If-None-Match` returns `304 Not Modified`)
+- **Precondition Checking (If-Match / 412):** Implemented (Optimistic concurrency with `If-Match` header validation on order status updates, order cancellations, and product updates; returns `412 Precondition Failed` if stale)
+- **Rate Limiting & 429 Responses:** Implemented (Standard rate-limiting middleware returns `429 Too Many Requests` along with standard `RateLimit-*` headers, `Retry-After` header in seconds, and Problem Details envelope)
+
+---
+
+### Assignment 6: Honest Responses: Status Codes, Errors & Validation
+- **Honest HTTP Status Codes:** Implemented (Endpoints return accurate HTTP codes 200, 201, 304, 400, 401, 403, 404, 406, 409, 412, 422, 429, 500, 503, and 504 instead of 200 with error payloads)
+- **Location Header on 201 Created:** Implemented (`Location` header pointing to canonical resource URI set on `POST /api/orders` and `POST /api/products`, and forwarded by API Gateway)
+- **RFC 7807/9457 Problem Details (`application/problem+json`):** Implemented (Unified `problem()` helper across services producing standard `type`, `title`, `status`, `detail`, `instance`, and `requestId`, with `Content-Type: application/problem+json`)
+- **Error Masking & Types:** Implemented (Internal errors safely masked with request IDs; stable machine-readable URI type catalogue enforced for domain errors: `empty-cart`, `item-unavailable`, `payment-declined`, `order-not-found`, `illegal-transition`, `precondition-failed`, etc.)
+- **Multi-Field Validation Array:** Implemented (AJV validation captures all errors simultaneously returning structured `errors[]` array with `field`, `message`, and `keyword`; empty checkout returns `422 Unprocessable Entity` with `errors[]`)
+- **JSON and XML Representation Negotiation:** Implemented (Both Product Service and Orders Service support JSON and XML representation negotiation via `Accept` headers with `Vary: Accept`, returning `406 Not Acceptable` if unsupported)
 
 ---
 
@@ -97,6 +105,20 @@ SmartCart incorporates the comprehensive 28-point enterprise backend and distrib
 | **Payment Service** | `4006` | MongoDB (`smartcart_payments`) | Razorpay order creation, Signature verification, Webhook processing, Refund management, COD |
 | **Notification Service** | `4007` | MongoDB (`smartcart_notifications`) | Transactional email delivery (Resend / Mock), Delivery logs, Notification preferences |
 | **Frontend Web App** | `3000` | — | Next.js 15 App Router storefront, Customer portal, Staff & Admin management suite |
+
+---
+
+## Roles & Access Control (RBAC)
+
+SmartCart enforces a strict Role-Based Access Control (RBAC) hierarchy. Backend microservices validate granular permission claims issued by the Auth Service, and dedicated portal gates prevent privilege crossover. No sensitive user credentials, account identifiers, or passwords are hardcoded in the codebase.
+
+| Role | Access Portal | Assigned Permissions | Responsibilities & Capabilities |
+| :--- | :--- | :--- | :--- |
+| **`customer`** | Storefront (`/login`, `/account`) | `products.read`, `orders.read_own`, `refunds.request` | • Default account assigned upon registration.<br>• Browse, search, filter, and view catalog products and customer reviews.<br>• Manage cart and wishlist items, apply server-validated coupons.<br>• Place orders via Razorpay (UPI/Card) or Cash on Delivery (COD).<br>• View real-time shipment tracking for their own orders.<br>• Request order returns within 30 days of delivery and submit product reviews. |
+| **`support`** | Staff Portal (`/admin/login`) | `products.read`, `orders.read_all`, `customers.read`, `returns.review`, `refunds.request`, `notifications.manage` | • Customer service and support desk operations.<br>• Access order records across all customers to diagnose order inquiries.<br>• Review customer return requests (approve or reject with reasons).<br>• Initiate refund requests for approved returns.<br>• Inspect customer profiles and audit notification delivery logs. |
+| **`inventory_staff`** | Staff Portal (`/admin/login`) | `products.read`, `products.write`, `inventory.read`, `inventory.write`, `orders.read_all` | • Warehouse and catalog operations.<br>• Create, update, and manage product listings, pricing, and category assignments.<br>• Monitor inventory levels and low-stock threshold alerts.<br>• Record stock adjustments, restocks, and inspected returned inventory.<br>• View incoming and active customer orders to prepare shipments. |
+| **`admin`** | Admin Suite (`/admin`) | All staff permissions plus `orders.manage`, `customers.manage`, `promotions.manage`, `reviews.moderate`, `staff.read`, `analytics.read` | • General e-commerce store operations.<br>• Advance order lifecycles (`CONFIRMED` -> `SHIPPED` -> `DELIVERED`).<br>• Attach carrier tracking details to dispatches.<br>• Create and manage coupon promotions, discount types, and usage limits.<br>• Moderate customer reviews (publish/hide).<br>• View customer accounts and export paginated sales reports (CSV). |
+| **`super_admin`** | Super Admin Suite (`/super-admin`) | Complete system permissions (`refunds.approve`, `staff.manage`, `settings.manage`, `audit.read`, etc.) | • Top-tier administrative governance protected by multi-step login challenges.<br>• Provision, invite, activate, and manage staff accounts and roles (`/admin/staff`).<br>• Authorize and execute financial payment refunds through Razorpay.<br>• Manage store identity, tax rates, shipping rules, and return policy settings.<br>• Review immutable security, transaction, and gateway audit logs. |
 
 ---
 

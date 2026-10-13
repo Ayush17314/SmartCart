@@ -28,19 +28,51 @@ app.use((req, res, next) => {
   next();
 });
 
+const { problem } = require("./problem");
+
 const Model = (name, schema) =>
   mongoose.models[name] || mongoose.model(name, new Schema(schema, { timestamps: true }));
+
+function computeProductEtag(product) {
+  const raw = `${product._id}-${product.updatedAt ? new Date(product.updatedAt).getTime() : 0}-${product.stock}-${product.price}`;
+  return `"${crypto.createHash("md5").update(raw).digest("hex")}"`;
+}
+
+app.options(["/api/products", "/v1/api/products"], (req, res) => {
+  res.set("Allow", "GET, POST, OPTIONS, HEAD");
+  return res.status(204).end();
+});
+app.options(["/api/products/:id", "/v1/api/products/:id"], (req, res) => {
+  res.set("Allow", "GET, PUT, DELETE, OPTIONS, HEAD");
+  return res.status(204).end();
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api") && req.get("Accept")) {
+    const accepts = req.accepts(["application/json", "application/xml", "text/xml", "application/problem+json", "*/*"]);
+    if (!accepts) {
+      return problem(res, {
+        type: "not-acceptable",
+        title: "Not Acceptable",
+        status: 406,
+        detail: "Requested media type not supported. Please accept application/json or application/xml.",
+      });
+    }
+  }
+  next();
+});
 
 const reply = (res, data, status = 200) => res.status(status).json({ success: true, data });
 const error = (res, err) => {
   const requestId = res.getHeader("X-Request-Id") || res.req?.requestId;
-  if (err.code === 11000) return res.status(409).json({ success: false, message: "A product with this SKU already exists", requestId });
+  if (err.code === 11000) return problem(res, { type: "conflict", status: 409, detail: "A product with this SKU already exists", requestId });
   if (err.name === "ValidationError" || err.name === "CastError") {
-    return res.status(400).json({ success: false, message: err.message, requestId });
+    return problem(res, { type: "validation-error", status: 400, detail: err.message, requestId });
   }
-  return res.status(err.status || 500).json({
-    success: false,
-    message: err.status ? err.message : "Internal server error",
+  return problem(res, {
+    status: err.status || 500,
+    type: err.type,
+    detail: err.status ? err.message : "Internal server error",
     requestId,
   });
 };
@@ -534,7 +566,10 @@ app.get("/api/products/:id", async (req, res) => {
   try {
     res.vary("Accept");
     const product = await Product.findOne({ _id: req.params.id, archivedAt: null });
-    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
+    if (!product) return problem(res, { type: "product-not-found", status: 404, detail: "Product not found" });
+    const etag = computeProductEtag(product);
+    res.set("ETag", etag);
+    if (req.get("If-None-Match") === etag) return res.status(304).end();
     if (req.accepts(["json", "xml"]) === "xml") return res.type("application/xml").send(asXml({ success: true, data: product }));
     return reply(res, product);
   } catch (err) {
@@ -671,6 +706,8 @@ app.post("/api/products", guard, async (req, res) => {
     if (Number(fields.stock) > 0) fields.stockHistory = [{ actorUserId: req.user.id, previousStock: 0, newStock: Number(fields.stock), reason: "Initial product stock", changedAt: new Date() }];
     const product = await Product.create(fields);
     product.stockHistory = undefined;
+    res.set("Location", `/api/products/${product._id}`);
+    res.set("ETag", computeProductEtag(product));
     return reply(res, product, 201);
   } catch (err) {
     return error(res, err);
@@ -681,13 +718,28 @@ app.put("/api/products/:id", guard, async (req, res) => {
   try {
     if (req.body.images !== undefined && !safeImageUrls(req.body.images)) return res.status(400).json({ success: false, message: "Product images must be HTTPS URLs under 2048 characters" });
     const before = await Product.findById(req.params.id);
-    if (!before) return res.status(404).json({ success: false, message: "Product not found" });
+    if (!before) return problem(res, { type: "product-not-found", status: 404, detail: "Product not found" });
+
+    const currentEtag = computeProductEtag(before);
+    const ifMatch = req.get("If-Match");
+    if (ifMatch && ifMatch !== "*" && ifMatch !== currentEtag) {
+      res.set("ETag", currentEtag);
+      return problem(res, {
+        type: "precondition-failed",
+        title: "Precondition Failed",
+        status: 412,
+        detail: "Product was modified by another client. If-Match condition failed.",
+        extra: { currentEtag },
+      });
+    }
+
     const fields = pickProductFields(req.body);
     if (fields.stock !== undefined && fields.stock !== before.stock && String(req.body.stockAdjustmentReason || "").trim().length < 3) return res.status(400).json({ success: false, message: "A reason is required when changing product stock" });
     const update = { $set: fields };
     if (fields.stock !== undefined && fields.stock !== before.stock) update.$push = { stockHistory: { $each: [{ actorUserId: req.user.id, previousStock: before.stock, newStock: fields.stock, reason: String(req.body.stockAdjustmentReason).trim(), changedAt: new Date() }], $slice: -1000 } };
     const product = await Product.findOneAndUpdate({ _id: req.params.id, stock: before.stock }, update, { new: true, runValidators: true });
     if (!product) return res.status(409).json({ success: false, message: "Product changed while you were editing it. Reload and try again." });
+    res.set("ETag", computeProductEtag(product));
     return reply(res, product);
   } catch (err) {
     return error(res, err);
