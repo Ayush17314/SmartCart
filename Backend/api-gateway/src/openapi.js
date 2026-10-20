@@ -67,7 +67,13 @@ module.exports = {
                 ],
                 responses: { "200": { description: "Product page", headers: { ETag: { schema: { type: "string" } }, Link: { schema: { type: "string" } }, "Cache-Control": { schema: { type: "string" } } }, content: { "application/json": { schema: { $ref: "#/components/schemas/ProductList" } }, "application/xml": { schema: { type: "string" } } } }, "304": { $ref: "#/components/responses/NotModified" }, "406": { $ref: "#/components/responses/NotAcceptable" }, "429": { $ref: "#/components/responses/RateLimited" }, "500": { $ref: "#/components/responses/Error" } },
             },
-            post: { security: [{ bearerAuth: [] }], summary: "Create a product", parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ProductInput" } } } }, responses: { "201": { description: "Created", headers: { Location: { schema: { type: "string", example: "/api/products/64f1..." } }, ETag: { schema: { type: "string" } } } }, "400": { $ref: "#/components/responses/Error" }, "401": { $ref: "#/components/responses/Error" }, "409": { $ref: "#/components/responses/Error" }, "429": { $ref: "#/components/responses/RateLimited" } } },
+            post: { security: [{ bearerAuth: [] }], 
+            summary: "Create a product", 
+            parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }], 
+            requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ProductInput" } } } }, 
+            responses: { "201": { description: "Created", headers: { Location: { schema: { type: "string", example: "/api/products/64f1..." } }, ETag: { schema: { type: "string" } } } }, "400": { $ref: "#/components/responses/Error" }, "401": { $ref: "#/components/responses/Error" }, "409": { $ref: "#/components/responses/Error" }, "429": { $ref: "#/components/responses/RateLimited" } 
+                } 
+            },
         },
         "/api/products/brands": { get: { summary: "List active product brands with product counts", responses: { "200": { description: "Brand list" } } } },
         "/api/products/{id}": {
