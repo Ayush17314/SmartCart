@@ -146,10 +146,13 @@ async function enqueueNotification({ userId, event, orderId, status, idempotency
 }
 
 async function sendWithResend(notification) {
+  const recipient = (process.env.EMAIL_FROM === "onboarding@resend.dev" && process.env.RESEND_DEV_RECIPIENT)
+    ? process.env.RESEND_DEV_RECIPIENT
+    : notification.recipient;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": notification.idempotencyKey },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [notification.recipient], subject: notification.subject, text: notification.message }),
+    body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [recipient], subject: notification.subject, text: notification.message }),
     signal: AbortSignal.timeout(Number(process.env.EMAIL_TIMEOUT_MS) || 8000),
   });
   const result = await response.json().catch(() => ({}));

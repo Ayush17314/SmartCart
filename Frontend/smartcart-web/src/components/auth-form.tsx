@@ -54,7 +54,6 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
   const [verificationPreview, setVerificationPreview] = useState("");
   const [mfaChallengeId, setMfaChallengeId] = useState("");
   const [mfaCode, setMfaCode] = useState("");
-  const [developmentCodePreview, setDevelopmentCodePreview] = useState("");
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [googleSdkReady, setGoogleSdkReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
@@ -207,8 +206,7 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
 
       if (body.data?.mfaRequired && typeof body.data.challengeId === "string") {
         setMfaChallengeId(body.data.challengeId);
-        setDevelopmentCodePreview(body.data.developmentCodePreview || "");
-        setRequestNotice("Enter the 6-digit security code to complete sign-in.");
+        setRequestNotice(body.data?.message || "A 6-digit security code has been sent to your email. Enter it below to complete sign-in.");
         return;
       }
 
@@ -350,11 +348,6 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
           />
         </Field>
       )}
-      {developmentCodePreview && (
-        <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
-          One-time verification code: <strong className="font-mono tracking-widest">{developmentCodePreview}</strong>
-        </p>
-      )}
       {mfaChallengeId && (
         <button
           type="button"
@@ -362,7 +355,6 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
           onClick={() => {
             setMfaChallengeId("");
             setMfaCode("");
-            setDevelopmentCodePreview("");
             setRequestNotice("");
             setRequestError("");
           }}
