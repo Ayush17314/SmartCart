@@ -10,15 +10,52 @@ SmartCart is an enterprise-grade, Amazon-inspired e-commerce platform built with
 - **Course Project:** Web Services
 - **GitHub Repository:** [https://github.com/Ayush17314/SmartCart](https://github.com/Ayush17314/SmartCart)
 
-### Team Members
+### Team Members & Contributions
 
-| # | Name | Roll Number | 
-|---|---|---|
-| 1 | **Ayush Kumar Dubey** | `20251651030` | 
-| 2 | **Abhinav Jain** | `20251651003` | 
-| 3 | **Anuj Gupta** | `20251651025` | 
-| 4 | **Bharath Kumar MP** | `20251651031` | 
-| 5 | **Kaushik Nanda Upadhaya** | `20251651050` |
+| # | Name | Roll Number | Assigned Modules |
+|---|---|---|---|
+| 1 | **Ayush Kumar Dubey** | `20251651030` | `auth-service` & `api-gateway` |
+| 2 | **Abhinav Jain** | `20251651003` | `order-service` |
+| 3 | **Bharath Kumar MP** | `20251651031` | `product-service` & `frontend (smartcart-web)` |
+| 4 | **Anuj Gupta** | `20251651025` | `cart-service` & `wishlist-service` |
+| 5 | **Kaushik Nanda Upadhaya** | `20251651050` | `notification-service` |
+
+#### Detailed Member Contributions
+
+#### 1. Ayush Kumar Dubey (`20251651030`)
+- **Assigned Modules:** `auth-service` & `api-gateway`
+- **Authentication & Security:** Built the user login/signup system with 5 access roles (`customer`, `support`, `inventory_staff`, `admin`, `super_admin`), bcrypt password hashing, and token revocation on logout.
+- **Super Admin 2FA:** Implemented email-based two-factor authentication (OTP sent to email via Resend with no on-screen display).
+- **API Gateway:** Created the central gateway handling reverse-proxy routing, rate limiting, request validation, and OpenAPI/Swagger documentation (`/docs`).
+- **Gateway Idempotency & GraphQL:** Implemented the idempotency store to prevent duplicate requests and added the GraphQL query endpoint.
+
+#### 2. Abhinav Jain (`20251651003`)
+- **Assigned Modules:** `order-service`
+- **Checkout & Order Creation:** Engineered the order placement flow, calculating totals, taxes, and coordinating with inventory to reserve stock.
+- **Order Lifecycle Management:** Built the order state machine (`PENDING` $\rightarrow$ `CONFIRMED` $\rightarrow$ `SHIPPED` $\rightarrow$ `DELIVERED` $\rightarrow$ `CANCELLED`).
+- **Shipment Tracking & Returns:** Implemented carrier tracking number updates and the 30-day customer return request and staff review process.
+- **Discount & Coupon Engine:** Developed the server-side promotion engine for percentage and fixed discount coupons with minimum spend limits.
+
+#### 3. Bharath Kumar MP (`20251651031`)
+- **Assigned Modules:** `product-service` & `frontend (smartcart-web)`
+- **Product Catalog & Inventory:** Built the product catalog with category filtering, search, stock tracking, and atomic inventory reservation to prevent overselling.
+- **Customer Reviews:** Implemented the rating and review system with automatic average rating calculation.
+- **Next.js 15 Storefront:** Developed the customer shopping UI, product pages, cart drawer, checkout screens, and shipment tracking timeline.
+- **Admin & Staff Portals:** Built the administrative dashboards for managing products, processing orders, and viewing reports.
+
+#### 4. Anuj Gupta (`20251651025`)
+- **Assigned Modules:** `cart-service` & `wishlist-service`
+- **Shopping Cart Service:** Created the persistent cart service linking items to user accounts with real-time quantity updates and price calculations.
+- **Automated Cart Clearing:** Configured automatic cart cleanup once an order is successfully placed.
+- **Wishlist Service:** Built the saved-items service allowing customers to save products and quickly move them to the cart.
+- **Data Protection:** Ensured all cart and wishlist endpoints are strictly protected by user token verification.
+
+#### 5. Kaushik Nanda Upadhaya (`20251651050`)
+- **Assigned Modules:** `notification-service`
+- **Email Notification Pipeline:** Built the notification service listening for order, payment, and shipment status changes.
+- **Resend Integration:** Integrated the Resend email API to send automated, professional transactional emails.
+- **Queue & Retry Mechanism:** Created a background worker queue that handles delivery retries with exponential backoff if a network error occurs.
+- **Delivery Logging & Sandbox Mode:** Built notification delivery tracking and developer sandbox routing for reliable local testing.
 
 ---
 
