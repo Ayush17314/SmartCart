@@ -8,7 +8,6 @@ SmartCart is an enterprise-grade, Amazon-inspired e-commerce platform built with
 
 - **Group ID:** 05 (TeamID 05)
 - **Course Project:** Web Services
-- **Google Drive Project Link:** [Google Drive Submission Folder](https://drive.google.com/drive/folders/1q9IY8r2_aUCeogiUsT0tpODwt3hF6PHL?usp=sharing)
 - **GitHub Repository:** [https://github.com/Ayush17314/SmartCart](https://github.com/Ayush17314/SmartCart)
 
 ### Team Members
