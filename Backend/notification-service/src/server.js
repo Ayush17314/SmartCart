@@ -146,9 +146,7 @@ async function enqueueNotification({ userId, event, orderId, status, idempotency
 }
 
 async function sendWithResend(notification) {
-  const recipient = (process.env.EMAIL_FROM === "onboarding@resend.dev" && process.env.RESEND_DEV_RECIPIENT)
-    ? process.env.RESEND_DEV_RECIPIENT
-    : notification.recipient;
+  const recipient = notification.recipient;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": notification.idempotencyKey },
@@ -156,7 +154,12 @@ async function sendWithResend(notification) {
     signal: AbortSignal.timeout(Number(process.env.EMAIL_TIMEOUT_MS) || 8000),
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(result.message || "Email provider rejected the message"), { retryable: response.status === 429 || response.status === 409 || response.status >= 500, outcomeUncertain: response.status === 409 || response.status >= 500, httpStatus: response.status });
+  if (!response.ok) {
+    if (response.status === 403 && String(result.message || "").includes("verify a domain")) {
+      console.warn(`[notification-service] Resend sandbox: Cannot deliver to ${recipient} using ${process.env.EMAIL_FROM}. To deliver to all customers, verify a custom domain at https://resend.com/domains.`);
+    }
+    throw Object.assign(new Error(result.message || "Email provider rejected the message"), { retryable: response.status === 429 || response.status === 409 || response.status >= 500, outcomeUncertain: response.status === 409 || response.status >= 500, httpStatus: response.status });
+  }
   if (!result.id) throw Object.assign(new Error("Email provider did not return a message id"), { retryable: true });
   return result.id;
 }

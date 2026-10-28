@@ -189,9 +189,7 @@ async function deliverEmail({ to, subject, text, html }) {
   const provider = process.env.EMAIL_PROVIDER || "mock";
   if (provider === "resend") {
     if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) throw Object.assign(new Error("Email provider is not configured"), { statusCode: 503 });
-    const recipient = (process.env.EMAIL_FROM === "onboarding@resend.dev" && process.env.RESEND_DEV_RECIPIENT)
-      ? process.env.RESEND_DEV_RECIPIENT
-      : to;
+    const recipient = to;
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [recipient], subject, text, html }),
@@ -200,6 +198,10 @@ async function deliverEmail({ to, subject, text, html }) {
     if (!response.ok) {
       const errBody = await response.json().catch(() => ({}));
       console.error("Resend API delivery error:", response.status, errBody);
+      if (response.status === 403 && process.env.NODE_ENV !== "production") {
+        console.warn(`[auth-service] Resend sandbox restriction: Could not send to ${recipient} using ${process.env.EMAIL_FROM}. To deliver to all customers, verify a custom domain at https://resend.com/domains.`);
+        return { delivered: false, preview: text, warning: errBody.message };
+      }
       throw Object.assign(new Error(errBody.message || "Email delivery failed"), { statusCode: 503 });
     }
     return { delivered: true, recipient };
