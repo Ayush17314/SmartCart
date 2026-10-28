@@ -1,34 +1,25 @@
 # SmartCart: Cloud-Native Microservices E-Commerce Platform
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.5.27-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.0.0-blue?style=for-the-badge&logo=react)](https://react.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green?style=for-the-badge&logo=node.js)](https://nodejs.org/)
-[![Express](https://img.shields.io/badge/Express-4.21-lightgrey?style=for-the-badge&logo=express)](https://expressjs.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas%20%7C%20Local-forestgreen?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-darkblue?style=for-the-badge&logo=mysql)](https://www.mysql.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
-
 SmartCart is an enterprise-grade, Amazon-inspired e-commerce platform built with a distributed **microservices backend** and a modern **Next.js 15 App Router frontend**. The system features decoupled domain services, an intelligent reverse-proxy API Gateway with dual REST and GraphQL support, dual-phase transaction orchestration, strict Role-Based Access Control (RBAC), multi-channel resilient payments (Razorpay & COD), and transactional notifications (Resend).
 
 ---
 
 ## Academic Group & Repository Information
 
-- **Group ID:** 03 (TeamID 03)
+- **Group ID:** 05 (TeamID 05)
 - **Course Project:** Web Services
 - **Google Drive Project Link:** [Google Drive Submission Folder](https://drive.google.com/drive/folders/1q9IY8r2_aUCeogiUsT0tpODwt3hF6PHL?usp=sharing)
 - **GitHub Repository:** [https://github.com/Ayush17314/SmartCart](https://github.com/Ayush17314/SmartCart)
 
 ### Team Members
 
-| # | Name | Roll Number | Primary Project Focus |
-|---|---|---|---|
-| 1 | **Ayush Kumar Dubey** | `20251651030` | System Architecture, Auth & Security, Notification Service |
-| 2 | **Abhinav Jain** | `20251651003` | API Gateway, OpenAPI Contract, GraphQL, Idempotency Store |
-| 3 | **Anuj Gupta** | `20251651025` | Order Service, Inventory Orchestration, Stock Resiliency |
-| 4 | **Bharath Kumar MP** | `20251651031` | Payment Service, Razorpay Integration, Webhooks & Refunds |
-| 5 | **Kaushik Nanda Upadhaya** | `20251651050` | Product Service, Cart & Wishlist Services, Review Moderation |
+| # | Name | Roll Number | 
+|---|---|---|
+| 1 | **Ayush Kumar Dubey** | `20251651030` | 
+| 2 | **Abhinav Jain** | `20251651003` | 
+| 3 | **Anuj Gupta** | `20251651025` | 
+| 4 | **Bharath Kumar MP** | `20251651031` | 
+| 5 | **Kaushik Nanda Upadhaya** | `20251651050` |
 
 ---
 
