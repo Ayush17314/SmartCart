@@ -194,13 +194,13 @@ async function deliverEmail({ to, subject, text, html }) {
   const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
   const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) {
-    console.warn("[auth-service] SMTP credentials not configured (set SMTP_USER & SMTP_PASSWORD); skipping email dispatch");
-    return { delivered: false, preview: text };
+    throw new Error("SMTP credentials not configured (set SMTP_USER & SMTP_PASSWORD)");
   }
   const fromEmail = process.env.EMAIL_FROM || user;
 
-  // 1. Direct Brevo HTTPS API (port 443 - bypasses cloud firewall SMTP port 587 timeouts)
-  if (pass.startsWith("xkeysib-")) {
+  // 1. Direct Brevo HTTPS API (port 443 - bypasses cloud firewall SMTP port blocks)
+  const isBrevo = (process.env.SMTP_HOST || "").includes("brevo.com") || pass.startsWith("xkeysib-") || pass.startsWith("xsmtpsib-");
+  if (isBrevo) {
     try {
       const apiRes = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -224,50 +224,53 @@ async function deliverEmail({ to, subject, text, html }) {
         return { delivered: true, recipient: to, messageId: result.messageId };
       }
       const errText = await apiRes.text();
-      console.warn("[auth-service] Brevo HTTPS API returned error, attempting SMTP fallback:", errText);
+      console.warn("[auth-service] Brevo HTTPS API returned error, attempting multi-port SMTP fallback:", errText);
     } catch (e) {
-      console.warn("[auth-service] Brevo HTTPS API request failed, attempting SMTP fallback:", e.message);
+      console.warn("[auth-service] Brevo HTTPS API request failed, attempting multi-port SMTP fallback:", e.message);
     }
   }
 
-  // 2. SMTP Transport Fallback
+  // 2. SMTP Transport with Port 465 (Direct SSL), Port 2525, and Port 587 Fallback
   const nodemailer = require("nodemailer");
-  let host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
-  let servername = undefined;
-  if (host) {
+  const host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
+  const configuredPort = Number(process.env.SMTP_PORT) || 465;
+
+  // Try Port 465 (direct SSL) first on cloud providers as 587 is often firewalled
+  const portsToTry = configuredPort === 465
+    ? [{ port: 465, secure: true }, { port: 2525, secure: false }, { port: 587, secure: false }]
+    : [{ port: configuredPort, secure: configuredPort === 465 }, { port: 465, secure: true }, { port: 2525, secure: false }];
+
+  let lastError = null;
+  for (const { port, secure } of portsToTry) {
     try {
-      const dns = require("dns").promises;
-      const { address } = await dns.lookup(host);
-      servername = host;
-      host = address;
-    } catch {}
-  }
-  const transportOptions = process.env.SMTP_HOST
-    ? {
+      console.log(`[auth-service] Attempting SMTP delivery to ${to} via ${host}:${port} (secure=${secure})...`);
+      const transporter = nodemailer.createTransport({
         host,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: Number(process.env.SMTP_PORT) === 465,
-        tls: servername ? { servername } : undefined,
+        port,
+        secure,
         auth: { user, pass },
-      }
-    : {
-        service: "gmail",
-        auth: { user, pass },
-      };
-  const transporter = nodemailer.createTransport({
-    ...transportOptions,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000,
-  });
-  const info = await transporter.sendMail({
-    from: `"SmartCart" <${fromEmail}>`,
-    to,
-    subject,
-    text,
-    html,
-  });
-  return { delivered: true, recipient: to, messageId: info.messageId };
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 6000,
+      });
+
+      const info = await transporter.sendMail({
+        from: `"SmartCart" <${fromEmail}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+
+      console.log(`[auth-service] Email successfully delivered to ${to} via ${host}:${port}:`, info.messageId);
+      return { delivered: true, recipient: to, messageId: info.messageId };
+    } catch (err) {
+      console.warn(`[auth-service] SMTP attempt on ${host}:${port} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("Failed to deliver email through all SMTP transports");
 }
 
 const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -530,16 +533,12 @@ async function handleLogin(req, res, audience) {
         mfaRequired: true,
         challengeId,
         message: "A 6-digit security code has been sent to your email. Enter it below to complete sign-in.",
-        ...(isTestEnv && mail.preview ? { developmentCodePreview: mail.preview.match(/\b\d{6}\b/)?.[0] } : {}),
       });
     } catch (error) {
       console.error(JSON.stringify({ level: "error", service: "auth-service", message: "Super admin 2FA email dispatch failed", error: error.message }));
-      console.info(`\n=======================================================\n[SUPER ADMIN 2FA OTP CODE]: ${code}\n=======================================================\n`);
-      return reply(res, {
-        mfaRequired: true,
-        challengeId,
-        message: "A 6-digit security code was generated (check your email or enter the code).",
-        developmentCodePreview: code,
+      return res.status(503).json({
+        success: false,
+        message: "Unable to send verification code to your registered email address. Please try again in a few moments.",
       });
     }
   }

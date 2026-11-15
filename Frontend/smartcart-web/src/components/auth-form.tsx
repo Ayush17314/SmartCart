@@ -206,8 +206,7 @@ export function AuthForm({ mode, audience = "customer" }: Props) {
 
       if (body.data?.mfaRequired && typeof body.data.challengeId === "string") {
         setMfaChallengeId(body.data.challengeId);
-        const codePreview = body.data?.developmentCodePreview ? ` (Code: ${body.data.developmentCodePreview})` : "";
-        setRequestNotice((body.data?.message || "A 6-digit security code has been sent to your email. Enter it below to complete sign-in.") + codePreview);
+        setRequestNotice("A 6-digit security code has been sent to your registered email. Enter it below to complete sign-in.");
         return;
       }
 

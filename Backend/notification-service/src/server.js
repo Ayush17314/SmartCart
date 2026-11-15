@@ -449,47 +449,46 @@ async function sendWithSmtp(notification) {
     }
   }
 
-  // 2. SMTP Transport Fallback
+  // 2. SMTP Transport with Port 465 (Direct SSL), Port 2525, and Port 587 Fallback
   const nodemailer = require("nodemailer");
-  let host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
-  let servername = undefined;
-  if (host) {
+  const host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
+  const configuredPort = Number(process.env.SMTP_PORT) || 465;
+
+  const portsToTry = configuredPort === 465
+    ? [{ port: 465, secure: true }, { port: 2525, secure: false }, { port: 587, secure: false }]
+    : [{ port: configuredPort, secure: configuredPort === 465 }, { port: 465, secure: true }, { port: 2525, secure: false }];
+
+  let lastError = null;
+  for (const { port, secure } of portsToTry) {
     try {
-      const dns = require("dns").promises;
-      const { address } = await dns.lookup(host);
-      servername = host;
-      host = address;
-    } catch {}
+      console.log(`[notification-service] Attempting SMTP delivery to ${notification.recipient} via ${host}:${port} (secure=${secure})...`);
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 6000,
+      });
+
+      const info = await transporter.sendMail({
+        from: `"SmartCart" <${fromEmail}>`,
+        to: notification.recipient,
+        subject,
+        text,
+        html,
+      });
+
+      console.log(`[notification-service] Email successfully delivered to ${notification.recipient} via ${host}:${port}:`, info.messageId);
+      return info.messageId || `smtp-${Date.now()}`;
+    } catch (err) {
+      console.warn(`[notification-service] SMTP attempt on ${host}:${port} failed: ${err.message}`);
+      lastError = err;
+    }
   }
 
-  const transportOptions = process.env.SMTP_HOST
-    ? {
-        host,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: Number(process.env.SMTP_PORT) === 465,
-        tls: servername ? { servername } : undefined,
-        auth: { user, pass },
-      }
-    : {
-        service: "gmail",
-        auth: { user, pass },
-      };
-
-  const transporter = nodemailer.createTransport({
-    ...transportOptions,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000,
-  });
-  const info = await transporter.sendMail({
-    from: `"SmartCart" <${fromEmail}>`,
-    to: notification.recipient,
-    subject,
-    text,
-    html,
-  });
-
-  return info.messageId || `smtp-${Date.now()}`;
+  throw lastError || new Error("Failed to deliver notification email through all SMTP transports");
 }
 
 async function processOne(id) {
