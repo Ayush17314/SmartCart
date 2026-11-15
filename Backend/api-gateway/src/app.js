@@ -146,7 +146,7 @@ function fingerprint(req) {
 }
 
 function authExchangeAuthorized(req) {
-    const expected = process.env.AUTH_EXCHANGE_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-auth-exchange-secret-change-me");
+    const expected = process.env.AUTH_EXCHANGE_SECRET || "8e2d4f8a1c9b6e3f5a7d0c2e4b8a1f3c9e6d2a5b8f1c4e7a0d3b6f9c2e5a8d1";
     const received = req.get("X-Auth-Exchange-Secret") || "";
     const expectedBuffer = Buffer.from(expected);
     const receivedBuffer = Buffer.from(received);
@@ -226,7 +226,7 @@ async function proxyRequest(config, req, res, next) {
                 accept: req.get("Accept") || "application/json",
                 "content-type": req.get("Content-Type") || "application/json",
                 authorization: req.get("Authorization") || "",
-                ...(["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify", "/api/auth/google-login"].includes(req.apiPath) && authExchangeAuthorized(req) ? { "x-auth-exchange-secret": process.env.AUTH_EXCHANGE_SECRET || "local-auth-exchange-secret-change-me" } : {}),
+                ...(["/api/auth/login", "/api/auth/customer-login", "/api/auth/staff-login", "/api/auth/super-admin-login", "/api/auth/super-admin-verify", "/api/auth/google-login"].includes(req.apiPath) && authExchangeAuthorized(req) ? { "x-auth-exchange-secret": process.env.AUTH_EXCHANGE_SECRET || "8e2d4f8a1c9b6e3f5a7d0c2e4b8a1f3c9e6d2a5b8f1c4e7a0d3b6f9c2e5a8d1" } : {}),
                 "idempotency-key": req.get("Idempotency-Key") || "",
                 "x-request-id": req.requestId,
                 "if-none-match": req.get("If-None-Match") || "",

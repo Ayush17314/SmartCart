@@ -292,7 +292,7 @@ function renderAuthEmail({ title, badge, contentHtml, ctaText, ctaUrl, footerNot
 </html>`;
 }
 function authExchangeAuthorized(req) {
-  const expected = process.env.AUTH_EXCHANGE_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-auth-exchange-secret-change-me");
+  const expected = process.env.AUTH_EXCHANGE_SECRET || "8e2d4f8a1c9b6e3f5a7d0c2e4b8a1f3c9e6d2a5b8f1c4e7a0d3b6f9c2e5a8d1";
   const received = req.get("X-Auth-Exchange-Secret") || "";
   const expectedBuffer = Buffer.from(expected);
   const receivedBuffer = Buffer.from(received);

@@ -54,7 +54,7 @@ flowchart LR
 | **Frontend** | [Vercel](https://vercel.com) | Unlimited builds, global Edge CDN, auto HTTPS, zero-config Next.js 15 | **$0 / mo** |
 | **Backend (8 Microservices)** | [Render](https://render.com) | Free Web Service (512MB RAM, shared CPU), auto-SSL, Git deployments | **$0 / mo** |
 | **Database** | [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) | M0 Sandbox (512MB storage, TLS connection, shared RAM) | **$0 / mo** |
-| **Email Service** | [Resend](https://resend.com) | 3,000 transactional emails/month, 100 emails/day | **$0 / mo** |
+| **Email Service** | [Brevo SMTP](https://www.brevo.com) | 300 transactional emails/day ($0/month, sends to any recipient) | **$0 / mo** |
 | **Idempotency Store** | In-Memory Engine | Built-in memory store (`IDEMPOTENCY_STORE=memory`), eliminating MySQL | **$0 / mo** |
 | **Total Cost** | | | **$0.00** |
 
@@ -118,10 +118,13 @@ Scroll down to **Environment Variables** and add the following keys:
 | `NOTIFICATION_SERVICE_SECRET` | `1184921a4210cfae738517065b262c5efc96f5e39b0b0c73519633f184e10e84` | Internal notification service bearer token |
 | `INVENTORY_SERVICE_SECRET` | `f4a7c2e9b1d5f8a3c6e0b2d7f1a4c8e3b5d9f2a6c0e8b3d7f1a5c9e2b6d0f4a` | Internal inventory reservation secret |
 | `PAYMENT_SERVICE_SECRET` | `smartcart-internal-payment-service-secret-2026-key` | Internal payment service shared secret |
-| `EMAIL_PROVIDER` | `smtp` | Enables direct SMTP delivery to ANY recipient in the world |
-| `GMAIL_USER` | `ayushdubey1504@gmail.com` | Your Gmail address |
-| `GMAIL_APP_PASSWORD` | `<your-16-char-app-password>` | 16-letter App Password from Google Account |
-| `CORS_ORIGIN` | `https://localhost:3000` *(update after Step 2)* | Allowed web frontend origin |
+| `EMAIL_PROVIDER` | `smtp` | Enables direct SMTP delivery via Brevo Relay |
+| `SMTP_HOST` | `smtp-relay.brevo.com` | Brevo SMTP server host |
+| `SMTP_PORT` | `587` | Brevo SMTP port |
+| `SMTP_USER` | `c3506c001@smtp-brevo.com` | Brevo SMTP Login username |
+| `SMTP_PASSWORD` | `<your-brevo-smtp-key>` | Brevo SMTP master API key |
+| `EMAIL_FROM` | `ayushdubey1504@gmail.com` | Sender email address |
+| `CORS_ORIGIN` | `http://localhost:3000` *(update with your Vercel URL after Step 2)* | Allowed web frontend origin |
 | `SUPER_ADMIN_NAME` | `Ayush Dubey` | Pre-configured Super Admin name |
 | `SUPER_ADMIN_EMAIL` | `ayushdubey1504@gmail.com` | Pre-configured Super Admin email |
 | `SUPER_ADMIN_PASSWORD` | `@SuperAdmin123456` | Pre-configured Super Admin password |
@@ -198,13 +201,13 @@ Once both services are live, verify the complete shopping and admin flows:
 4. **Checkout (Cash on Delivery or Razorpay):**
    - Proceed to checkout, fill in shipping address, and choose **Cash on Delivery (COD)**.
    - Click **Place Order**.
-   - Verify order creation, atomic stock reduction, and receipt of an order confirmation email from Resend.
+   - Verify order creation, atomic stock reduction, and receipt of an order confirmation email from Brevo SMTP.
 5. **Super Admin 2FA Portal:**
    - Navigate to `/super-admin`.
    - Log in with:
      - **Email:** `ayushdubey1504@gmail.com`
      - **Password:** `@SuperAdmin123456`
-   - Check your Gmail inbox for the 6-digit OTP code sent by Resend.
+   - Check your Gmail inbox for the 6-digit OTP code sent from Brevo SMTP.
    - Enter the code to access the complete Super Admin management dashboard.
 
 ---

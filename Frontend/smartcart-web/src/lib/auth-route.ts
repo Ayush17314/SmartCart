@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "./same-origin";
 
-const upstream = () => (process.env.API_URL || "http://localhost:4000").replace(/\/$/, "");
-const authExchangeSecret = () => process.env.AUTH_EXCHANGE_SECRET || "local-auth-exchange-secret-change-me";
+const upstream = () => (process.env.API_URL || "https://smartcart-backend-0nnc.onrender.com").replace(/\/$/, "");
+const authExchangeSecret = () => process.env.AUTH_EXCHANGE_SECRET || "8e2d4f8a1c9b6e3f5a7d0c2e4b8a1f3c9e6d2a5b8f1c4e7a0d3b6f9c2e5a8d1";
 const sameOrigin = (request: NextRequest) => isSameOrigin(request);
 
 async function forward(request: NextRequest, action: string) {
