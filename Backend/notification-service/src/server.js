@@ -412,6 +412,45 @@ async function sendWithSmtp(notification) {
     return { delivered: false };
   }
 
+  const fromEmail = process.env.EMAIL_FROM || user;
+  const emailData = formatNotificationEmail(notification);
+  const subject = emailData.subject || notification.subject;
+  const text = emailData.text || notification.message;
+  const html = emailData.html;
+
+  // 1. Direct Brevo HTTPS API (port 443 - bypasses cloud firewall SMTP port 587 timeouts)
+  if (pass.startsWith("xkeysib-")) {
+    try {
+      const apiRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "api-key": pass,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "SmartCart", email: fromEmail },
+          to: [{ email: notification.recipient }],
+          subject,
+          htmlContent: html || text,
+          textContent: text,
+        }),
+        signal: AbortSignal.timeout(6000),
+      });
+      if (apiRes.ok) {
+        const result = await apiRes.json();
+        console.log(`[notification-service] Email successfully sent via Brevo HTTPS API to ${notification.recipient}:`, result.messageId);
+        return result.messageId;
+      }
+      const errText = await apiRes.text();
+      console.warn("[notification-service] Brevo HTTPS API returned error, attempting SMTP fallback:", errText);
+    } catch (e) {
+      console.warn("[notification-service] Brevo HTTPS API request failed, attempting SMTP fallback:", e.message);
+    }
+  }
+
+  // 2. SMTP Transport Fallback
+  const nodemailer = require("nodemailer");
   let host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
   let servername = undefined;
   if (host) {
@@ -442,14 +481,12 @@ async function sendWithSmtp(notification) {
     greetingTimeout: 8000,
     socketTimeout: 10000,
   });
-  const fromEmail = process.env.EMAIL_FROM || user;
-  const emailData = formatNotificationEmail(notification);
   const info = await transporter.sendMail({
     from: `"SmartCart" <${fromEmail}>`,
     to: notification.recipient,
-    subject: emailData.subject || notification.subject,
-    text: emailData.text || notification.message,
-    html: emailData.html,
+    subject,
+    text,
+    html,
   });
 
   return info.messageId || `smtp-${Date.now()}`;
