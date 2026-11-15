@@ -3,8 +3,9 @@ require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env"
 
 const rawDns = require("dns");
 try {
-  const nonLocalDns = rawDns.getServers().filter((s) => s !== "127.0.0.1" && s !== "::1");
-  rawDns.setServers(["8.8.8.8", "1.1.1.1", ...nonLocalDns]);
+  if (process.env.DNS_SERVERS) {
+    rawDns.setServers(process.env.DNS_SERVERS.split(","));
+  }
 } catch {}
 
 const crypto = require("crypto");
@@ -200,20 +201,37 @@ async function deliverEmail({ to, subject, text, html }) {
     throw Object.assign(new Error("SMTP credentials not configured (set GMAIL_USER & GMAIL_APP_PASSWORD or SMTP_USER & SMTP_PASSWORD)"), { statusCode: 503 });
   }
   const nodemailer = require("nodemailer");
+  let host = process.env.SMTP_HOST;
+  let servername = undefined;
+  if (host) {
+    try {
+      const dns = require("dns").promises;
+      const { address } = await dns.lookup(host);
+      servername = host;
+      host = address;
+    } catch {}
+  }
   const transportOptions = process.env.SMTP_HOST
     ? {
-        host: process.env.SMTP_HOST,
+        host,
         port: Number(process.env.SMTP_PORT) || 587,
         secure: Number(process.env.SMTP_PORT) === 465,
+        tls: servername ? { servername } : undefined,
         auth: { user, pass },
       }
     : {
         service: "gmail",
         auth: { user, pass },
       };
-  const transporter = nodemailer.createTransport(transportOptions);
+  const transporter = nodemailer.createTransport({
+    ...transportOptions,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
+  });
+  const fromEmail = process.env.EMAIL_FROM || user;
   const info = await transporter.sendMail({
-    from: `"SmartCart" <${user}>`,
+    from: `"SmartCart" <${fromEmail}>`,
     to,
     subject,
     text,
@@ -224,6 +242,55 @@ async function deliverEmail({ to, subject, text, html }) {
 
 const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 const genericAuthMessage = "If the account is eligible, you will receive an email with the next steps.";
+
+function renderAuthEmail({ title, badge, contentHtml, ctaText, ctaUrl, footerNote }) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title || "SmartCart"}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 28px;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Smart<span style="color: #10b981;">Cart</span></span>
+                  </td>
+                  ${badge ? `<td align="right"><span style="display: inline-block; background-color: rgba(255,255,255,0.15); color: #ffffff; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${badge}</span></td>` : ""}
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 28px;">
+              ${contentHtml}
+              ${ctaUrl && ctaText ? `
+                <div style="margin: 28px 0; text-align: center;">
+                  <a href="${ctaUrl}" style="display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 8px;">${ctaText}</a>
+                </div>
+              ` : ""}
+              ${footerNote ? `<p style="margin: 24px 0 0 0; font-size: 12px; color: #64748b; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px;">${footerNote}</p>` : ""}
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f8fafc; padding: 16px 28px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">&copy; ${new Date().getFullYear()} SmartCart Inc. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
 function authExchangeAuthorized(req) {
   const expected = process.env.AUTH_EXCHANGE_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-auth-exchange-secret-change-me");
   const received = req.get("X-Auth-Exchange-Secret") || "";
@@ -295,7 +362,26 @@ app.post("/api/auth/register", authRateLimit({ max: 8 }), async (req, res) => {
       emailVerificationExpiresAt: new Date(Date.now() + 60 * 60_000),
     });
     const link = `${siteUrl()}/verify-email#token=${encodeURIComponent(rawToken)}`;
-    const mail = await deliverEmail({ to: email, subject: "Verify your SmartCart email", text: `Verify your email: ${link}`, html: `<p>Verify your email to activate your SmartCart account: <a href="${link}">Verify email</a></p>` });
+    const emailHtml = renderAuthEmail({
+      title: "Verify your email address",
+      badge: "Welcome",
+      contentHtml: `
+        <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 700;">Welcome to SmartCart!</h2>
+        <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">Hello <strong>${name}</strong>,</p>
+        <p style="margin: 0 0 20px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+          Thank you for creating an account with SmartCart. Please verify your email address to activate your account and start shopping:
+        </p>
+      `,
+      ctaText: "Verify Email Address",
+      ctaUrl: link,
+      footerNote: `⏳ This link is valid for 60 minutes. If the button above does not work, copy and paste this URL into your browser:<br><a href="${link}" style="color: #2563eb; word-break: break-all;">${link}</a>`,
+    });
+    const mail = await deliverEmail({
+      to: email,
+      subject: "✉️ Welcome to SmartCart — Please Verify Your Email",
+      text: `Welcome to SmartCart, ${name}!\n\nPlease verify your email to activate your account: ${link}\nThis link expires in 60 minutes.`,
+      html: emailHtml,
+    });
     await audit(req, "customer.register", "success", String(user._id));
     return res.status(201).json({ success: true, message: "Account created. Verify your email before signing in.", data: { user: safeUser(user), ...(mail.preview ? { developmentEmailPreview: mail.preview } : {}) } });
   } catch (error) {
@@ -327,7 +413,26 @@ app.post("/api/auth/resend-verification", authRateLimit({ max: 5 }), async (req,
     user.emailVerificationExpiresAt = new Date(Date.now() + 60 * 60_000);
     await user.save();
     const link = `${siteUrl()}/verify-email#token=${encodeURIComponent(rawToken)}`;
-    const mail = await deliverEmail({ to: user.email, subject: "Verify your SmartCart email", text: `Verify your email: ${link}`, html: `<p><a href="${link}">Verify email</a></p>` });
+    const emailHtml = renderAuthEmail({
+      title: "Verify your email address",
+      badge: "Verification",
+      contentHtml: `
+        <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 700;">Verify Your SmartCart Email</h2>
+        <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">Hello <strong>${user.name || "there"}</strong>,</p>
+        <p style="margin: 0 0 20px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+          You requested a new verification link for your SmartCart account. Click the button below to complete verification:
+        </p>
+      `,
+      ctaText: "Verify Email Address",
+      ctaUrl: link,
+      footerNote: `⏳ This link is valid for 60 minutes.<br><a href="${link}" style="color: #2563eb; word-break: break-all;">${link}</a>`,
+    });
+    const mail = await deliverEmail({
+      to: user.email,
+      subject: "✉️ SmartCart — Verify Your Email Address",
+      text: `Verify your SmartCart email: ${link}\nThis link expires in 60 minutes.`,
+      html: emailHtml,
+    });
     developmentEmailPreview = mail.preview;
   }
   await audit(req, "email.verification.resend", "success", user ? String(user._id) : null);
@@ -365,24 +470,28 @@ async function handleLogin(req, res, audience) {
       tokenVersion: user.tokenVersion || 0, expiresAt: new Date(Date.now() + 5 * 60_000), attempts: 0,
     });
     try {
-      const emailHtml = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-          <h2 style="color: #0f172a; margin-top: 0; font-size: 20px; font-weight: 700;">SmartCart Security Verification</h2>
-          <p style="color: #475569; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
-            A sign-in attempt was initiated for your <strong>Super Admin</strong> account. Use the one-time verification code below to complete sign-in:
+      const emailHtml = renderAuthEmail({
+        title: "Super Admin Verification Code",
+        badge: "Admin Security",
+        contentHtml: `
+          <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 700;">Super Admin Sign-In Verification</h2>
+          <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">Hello <strong>Super Administrator</strong>,</p>
+          <p style="margin: 0 0 20px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+            A sign-in attempt was initiated for your <strong>Super Admin</strong> account on the SmartCart administrative portal. Use the 6-digit verification code below to authorize your session:
           </p>
           <div style="text-align: center; margin: 24px 0;">
-            <span style="display: inline-block; font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #1e293b; background-color: #f1f5f9; padding: 14px 28px; border-radius: 8px; border: 1px solid #cbd5e1;">${code}</span>
+            <span style="display: inline-block; font-family: monospace; font-size: 34px; font-weight: 700; letter-spacing: 10px; color: #0f172a; background-color: #f1f5f9; padding: 16px 32px; border-radius: 8px; border: 2px dashed #94a3b8;">${code}</span>
           </div>
-          <p style="color: #64748b; font-size: 13px; line-height: 1.4; margin-bottom: 0;">
-            ⏳ This code is valid for <strong>5 minutes</strong>. If you did not make this request, please change your password immediately.
+          <p style="margin: 0 0 12px 0; color: #475569; font-size: 13px; line-height: 1.5;">
+            ⏳ This code is valid for <strong>5 minutes</strong> and can only be used once.
           </p>
-        </div>
-      `;
+        `,
+        footerNote: "⚠️ If you did not attempt to sign in to the Super Admin portal, please secure your account credentials immediately.",
+      });
       const mail = await deliverEmail({
         to: user.email,
-        subject: "Your SmartCart Super Admin Sign-In Code",
-        text: `Your Super Admin sign-in code is ${code}. It expires in 5 minutes.`,
+        subject: `🔐 [SmartCart] Super Admin Verification Code: ${code}`,
+        text: `[SmartCart Super Admin Verification]\nYour one-time sign-in code is: ${code}\nThis code is valid for 5 minutes.\nIf you did not initiate this sign-in attempt, please change your password immediately.`,
         html: emailHtml,
       });
       await audit(req, "super_admin.login.challenge", "success", String(user._id), String(user._id));
@@ -394,6 +503,16 @@ async function handleLogin(req, res, audience) {
         ...(isTestEnv && mail.preview ? { developmentCodePreview: mail.preview.match(/\b\d{6}\b/)?.[0] } : {}),
       });
     } catch (error) {
+      console.error(JSON.stringify({ level: "error", service: "auth-service", message: "Super admin 2FA email dispatch failed", error: error.message }));
+      if (process.env.NODE_ENV !== "production") {
+        console.info(`\n=======================================================\n[SUPER ADMIN 2FA OTP CODE]: ${code}\n=======================================================\n`);
+        return reply(res, {
+          mfaRequired: true,
+          challengeId,
+          message: "A 6-digit security code was generated (in local dev, see terminal for OTP).",
+          developmentCodePreview: code,
+        });
+      }
       await LoginChallenge.deleteOne({ challengeIdHash: hashToken(challengeId) });
       throw error;
     }
@@ -550,7 +669,26 @@ app.post("/api/auth/forgot-password", authRateLimit({ max: 5 }), async (req, res
     user.passwordResetExpiresAt = new Date(Date.now() + 30 * 60_000);
     await user.save();
     const link = `${siteUrl()}/reset-password#token=${encodeURIComponent(rawToken)}`;
-    const mail = await deliverEmail({ to: user.email, subject: "Reset your SmartCart password", text: `Reset your password: ${link}`, html: `<p>Reset your password: <a href="${link}">Reset password</a></p>` });
+    const emailHtml = renderAuthEmail({
+      title: "Reset your password",
+      badge: "Account Security",
+      contentHtml: `
+        <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 700;">Reset Your Password</h2>
+        <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">Hello <strong>${user.name || "there"}</strong>,</p>
+        <p style="margin: 0 0 20px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+          We received a request to reset the password for your SmartCart account. Click the button below to choose a new password:
+        </p>
+      `,
+      ctaText: "Reset My Password",
+      ctaUrl: link,
+      footerNote: `⏳ This link is valid for 30 minutes. If you did not request this change, you can safely ignore this email.<br><a href="${link}" style="color: #2563eb; word-break: break-all;">${link}</a>`,
+    });
+    const mail = await deliverEmail({
+      to: user.email,
+      subject: "🔒 Reset Your SmartCart Password",
+      text: `Reset your SmartCart password: ${link}\nThis link expires in 30 minutes. If you did not request this, please ignore this email.`,
+      html: emailHtml,
+    });
     developmentEmailPreview = mail.preview;
   }
   await audit(req, "password.reset.request", "success", user ? String(user._id) : null);
@@ -634,7 +772,28 @@ app.post("/api/auth/users/invite", authRateLimit({ max: 10 }), authenticate, req
   }
   try {
     const link = `${siteUrl()}/accept-staff-invite#token=${encodeURIComponent(rawToken)}`;
-    const mail = await deliverEmail({ to: email, subject: "You are invited to SmartCart staff", text: `Accept your SmartCart staff invitation: ${link}`, html: `<p>You have been invited to SmartCart staff. <a href="${link}">Set your password and accept the invitation</a>.</p>` });
+    const formattedRole = role.replace(/_/g, " ").toUpperCase();
+    const emailHtml = renderAuthEmail({
+      title: "SmartCart Staff Invitation",
+      badge: "Staff Access",
+      contentHtml: `
+        <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 700;">You've Been Invited to the SmartCart Team</h2>
+        <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-line-height: 1.6;">Hello <strong>${name}</strong>,</p>
+        <p style="margin: 0 0 20px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+          You have been invited to join SmartCart with the role of <strong>${formattedRole}</strong>.
+          Click the button below to accept your invitation and set up your account password:
+        </p>
+      `,
+      ctaText: "Accept Invitation & Set Password",
+      ctaUrl: link,
+      footerNote: `⏳ This invitation link expires in 24 hours.<br><a href="${link}" style="color: #2563eb; word-break: break-all;">${link}</a>`,
+    });
+    const mail = await deliverEmail({
+      to: email,
+      subject: "👋 You're Invited to Join SmartCart Staff",
+      text: `Hello ${name},\nYou have been invited to SmartCart as ${formattedRole}.\nAccept your invitation: ${link}\nThis link expires in 24 hours.`,
+      html: emailHtml,
+    });
     await audit(req, "staff.invite", "success", String(user._id), req.user.id, { role });
     return res.status(201).json({ success: true, message: "Staff invitation sent.", data: { user: safeUser(user), ...(mail.preview ? { developmentEmailPreview: mail.preview } : {}) } });
   } catch (error) {
@@ -653,7 +812,28 @@ app.post("/api/auth/users/:id/resend-invite", authRateLimit({ max: 10 }), authen
   await user.save();
   try {
     const link = `${siteUrl()}/accept-staff-invite#token=${encodeURIComponent(rawToken)}`;
-    const mail = await deliverEmail({ to: user.email, subject: "Your SmartCart staff invitation", text: `Accept your SmartCart staff invitation: ${link}`, html: `<p>Set a password to activate your SmartCart staff account. <a href="${link}">Accept invitation</a>.</p>` });
+    const formattedRole = user.role.replace(/_/g, " ").toUpperCase();
+    const emailHtml = renderAuthEmail({
+      title: "SmartCart Staff Invitation",
+      badge: "Staff Access",
+      contentHtml: `
+        <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px; font-weight: 700;">Your SmartCart Staff Invitation</h2>
+        <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">Hello <strong>${user.name || "there"}</strong>,</p>
+        <p style="margin: 0 0 20px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+          Here is your updated invitation link to join SmartCart with the role of <strong>${formattedRole}</strong>.
+          Click the button below to accept and set your account password:
+        </p>
+      `,
+      ctaText: "Accept Invitation & Set Password",
+      ctaUrl: link,
+      footerNote: `⏳ This invitation link expires in 24 hours.<br><a href="${link}" style="color: #2563eb; word-break: break-all;">${link}</a>`,
+    });
+    const mail = await deliverEmail({
+      to: user.email,
+      subject: "👋 Your SmartCart Staff Invitation",
+      text: `Hello ${user.name},\nAccept your SmartCart staff invitation (${formattedRole}): ${link}\nThis link expires in 24 hours.`,
+      html: emailHtml,
+    });
     await audit(req, "staff.invite.resend", "success", String(user._id), req.user.id, { role: user.role });
     return reply(res, { user: safeUser(user), ...(mail.preview ? { developmentEmailPreview: mail.preview } : {}) });
   } catch (error) {

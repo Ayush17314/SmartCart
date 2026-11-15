@@ -234,7 +234,7 @@ async function proxyRequest(config, req, res, next) {
                 "if-modified-since": req.get("If-Modified-Since") || "",
             },
             ...(upstreamMethod === "GET" || upstreamMethod === "HEAD" ? {} : { body: req.rawBody && req.apiPath === "/api/payments/webhook" ? req.rawBody : JSON.stringify(req.body) }),
-            signal: AbortSignal.timeout(Number(process.env.OUTBOUND_TIMEOUT_MS) || 5000),
+            signal: AbortSignal.timeout(Number(process.env.OUTBOUND_TIMEOUT_MS) || 15000),
         }), {
             retries: (req.method === "GET" || req.method === "HEAD" ? Number(process.env.OUTBOUND_RETRIES) || 2 : 0),
             baseDelayMs: Number(process.env.OUTBOUND_RETRY_BASE_MS) || 200,
