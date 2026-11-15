@@ -52,10 +52,23 @@ const graphqlSchema = buildSchema(`
     type Query { products(first: Int = 20, after: String, search: String, category: String): ProductConnection! }
 `);
 
+function isAllowedCorsOrigin(origin) {
+    if (!origin) return true;
+    const configured = (process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:3001").split(",").map((v) => v.trim().replace(/\/$/, ""));
+    if (configured.includes("*") || configured.includes(origin) || configured.includes(origin.replace(/\/$/, ""))) return true;
+    try {
+        const url = new URL(origin);
+        const hostname = url.hostname.toLowerCase();
+        if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".devtunnels.ms") || hostname.includes(".devtunnels.ms") || hostname.endsWith(".githubpreview.dev") || hostname.endsWith(".app.github.dev") || hostname.endsWith(".ngrok-free.app") || hostname.includes("ngrok") || hostname.endsWith(".trycloudflare.com")) return true;
+        if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+    } catch {}
+    return false;
+}
+
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-    origin: (process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:3001").split(",").map((value) => value.trim()),
+    origin: (origin, callback) => callback(null, isAllowedCorsOrigin(origin)),
     credentials: true,
     preflightContinue: true,
 }));

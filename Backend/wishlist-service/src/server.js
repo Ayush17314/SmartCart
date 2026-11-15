@@ -120,7 +120,7 @@ app.use((e, req, res, next) => {
   sendError(res, e);
 });
 
-const port = Number(process.env.PORT) || 4004;
+const port = Number(process.env.WISHLIST_PORT || process.env.WISHLIST_SERVICE_PORT) || 4004;
 mongoose
   .connect(process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017", {
     dbName: process.env.MONGODB_DB || "smartcart_wishlist",

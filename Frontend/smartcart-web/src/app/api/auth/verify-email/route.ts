@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOrigin } from "@/lib/same-origin";
+
 export async function POST(request: NextRequest) {
-  if (request.headers.get("origin") !== request.nextUrl.origin) return NextResponse.json({ success: false, message: "Cross-origin request rejected" }, { status: 403 });
+  if (!isSameOrigin(request)) return NextResponse.json({ success: false, message: "Cross-origin request rejected" }, { status: 403 });
   try {
     const body = await request.json();
     const upstream = (process.env.API_URL || "http://localhost:4000").replace(/\/$/, "");

@@ -168,7 +168,7 @@ app.use((e, req, res, next) => {
   sendError(res, e);
 });
 
-const port = Number(process.env.PORT) || 4003;
+const port = Number(process.env.CART_PORT || process.env.CART_SERVICE_PORT) || 4003;
 mongoose
   .connect(process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017", {
     dbName: process.env.MONGODB_DB || "smartcart_cart",

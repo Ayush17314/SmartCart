@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOrigin } from "@/lib/same-origin";
 export async function POST(request: NextRequest) {
-  if (request.headers.get("origin") !== request.nextUrl.origin) return NextResponse.json({ success: false, message: "Cross-origin request rejected" }, { status: 403 });
+  if (!isSameOrigin(request)) return NextResponse.json({ success: false, message: "Cross-origin request rejected" }, { status: 403 });
   const token = (await cookies()).get("smartcart_token")?.value;
   let status = 200;
   if (token) {

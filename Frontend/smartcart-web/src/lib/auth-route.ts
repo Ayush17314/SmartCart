@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOrigin } from "./same-origin";
 
 const upstream = () => (process.env.API_URL || "http://localhost:4000").replace(/\/$/, "");
 const authExchangeSecret = () => process.env.AUTH_EXCHANGE_SECRET || "local-auth-exchange-secret-change-me";
-const sameOrigin = (request: NextRequest) => request.headers.get("origin") === request.nextUrl.origin;
+const sameOrigin = (request: NextRequest) => isSameOrigin(request);
 
 async function forward(request: NextRequest, action: string) {
   try {

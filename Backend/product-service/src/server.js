@@ -790,7 +790,7 @@ app.use((err, req, res, next) => {
   return error(res, err);
 });
 
-const port = Number(process.env.PORT) || 4002;
+const port = Number(process.env.PRODUCT_PORT || process.env.PRODUCT_SERVICE_PORT) || 4002;
 if (process.env.NODE_ENV === "production" && (!process.env.INVENTORY_SERVICE_SECRET || process.env.INVENTORY_SERVICE_SECRET.length < 32 || /change-me|replace-with|local-development/i.test(process.env.INVENTORY_SERVICE_SECRET))) {
   console.error("A strong INVENTORY_SERVICE_SECRET is required in production");
   process.exit(1);

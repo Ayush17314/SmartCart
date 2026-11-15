@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOrigin } from "@/lib/same-origin";
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -14,8 +15,7 @@ const FORWARDED_HEADERS = [
 
 async function proxy(request: NextRequest, context: Context) {
   if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
-    const origin = request.headers.get("origin");
-    if (!origin || origin !== request.nextUrl.origin) {
+    if (!isSameOrigin(request)) {
       return NextResponse.json(
         { success: false, message: "Cross-origin request rejected" },
         { status: 403 }

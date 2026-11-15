@@ -25,7 +25,7 @@ const Notification = Model("Notification", {
   idempotencyKey: { type: String, required: true, maxlength: 200 },
   payloadHash: { type: String, required: true },
   status: { type: String, enum: ["QUEUED", "SENDING", "SENT", "MOCKED", "FAILED", "UNCERTAIN", "SKIPPED"], default: "QUEUED", index: true },
-  provider: { type: String, default: "resend" },
+  provider: { type: String, default: "smtp" },
   providerMessageId: { type: String, default: null },
   attemptCount: { type: Number, default: 0 },
   nextAttemptAt: { type: Date, default: Date.now, index: true },
@@ -145,23 +145,33 @@ async function enqueueNotification({ userId, event, orderId, status, idempotency
   }
 }
 
-async function sendWithResend(notification) {
-  const recipient = notification.recipient;
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": notification.idempotencyKey },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [recipient], subject: notification.subject, text: notification.message }),
-    signal: AbortSignal.timeout(Number(process.env.EMAIL_TIMEOUT_MS) || 8000),
+async function sendWithSmtp(notification) {
+  const nodemailer = require("nodemailer");
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
+  const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) throw Object.assign(new Error("SMTP credentials not configured (set GMAIL_USER & GMAIL_APP_PASSWORD or SMTP_USER & SMTP_PASSWORD)"), { retryable: false });
+
+  const transportOptions = process.env.SMTP_HOST
+    ? {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: { user, pass },
+      }
+    : {
+        service: "gmail",
+        auth: { user, pass },
+      };
+
+  const transporter = nodemailer.createTransport(transportOptions);
+  const info = await transporter.sendMail({
+    from: `"SmartCart" <${user}>`,
+    to: notification.recipient,
+    subject: notification.subject,
+    text: notification.message,
   });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    if (response.status === 403 && String(result.message || "").includes("verify a domain")) {
-      console.warn(`[notification-service] Resend sandbox: Cannot deliver to ${recipient} using ${process.env.EMAIL_FROM}. To deliver to all customers, verify a custom domain at https://resend.com/domains.`);
-    }
-    throw Object.assign(new Error(result.message || "Email provider rejected the message"), { retryable: response.status === 429 || response.status === 409 || response.status >= 500, outcomeUncertain: response.status === 409 || response.status >= 500, httpStatus: response.status });
-  }
-  if (!result.id) throw Object.assign(new Error("Email provider did not return a message id"), { retryable: true });
-  return result.id;
+
+  return info.messageId || `smtp-${Date.now()}`;
 }
 
 async function processOne(id) {
@@ -176,9 +186,8 @@ async function processOne(id) {
     return;
   }
   try {
-    if (process.env.EMAIL_PROVIDER !== "resend" || !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) throw Object.assign(new Error("Resend email provider is not configured"), { retryable: false });
-    const providerMessageId = await sendWithResend(notification);
-    await Notification.updateOne({ _id: notification._id, status: "SENDING" }, { $set: { status: "SENT", provider: "resend", providerMessageId, sentAt: new Date(), lastError: null }, $push: { history: { $each: [{ status: "SENT", detail: `Accepted by provider (${providerMessageId})` }], $slice: -30 } } });
+    const providerMessageId = await sendWithSmtp(notification);
+    await Notification.updateOne({ _id: notification._id, status: "SENDING" }, { $set: { status: "SENT", provider: "smtp", providerMessageId, sentAt: new Date(), lastError: null }, $push: { history: { $each: [{ status: "SENT", detail: `Accepted by SMTP (${providerMessageId})` }], $slice: -30 } } });
     console.info(JSON.stringify({ level: "info", service: "notification-service", notificationId: String(notification._id), event: notification.event, status: "SENT" }));
   } catch (err) {
     const maxAttempts = Math.min(Math.max(Number(process.env.NOTIFICATION_MAX_ATTEMPTS) || 5, 1), 10);
@@ -266,14 +275,16 @@ app.use((err, req, res, next) => {
   return error(res, err);
 });
 
-const port = Number(process.env.PORT) || 4007;
+const port = Number(process.env.NOTIFICATION_PORT || process.env.NOTIFICATION_SERVICE_PORT) || 4007;
 if (require.main === module) {
   if (process.env.NODE_ENV === "production" && (!process.env.NOTIFICATION_SERVICE_SECRET || process.env.NOTIFICATION_SERVICE_SECRET.length < 32 || /change-me|replace-with|local-development/i.test(process.env.NOTIFICATION_SERVICE_SECRET))) {
     console.error("A strong NOTIFICATION_SERVICE_SECRET is required in production");
     process.exit(1);
   }
-  if (process.env.NODE_ENV === "production" && (process.env.EMAIL_PROVIDER !== "resend" || !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) {
-    console.error("Configure Resend before starting Notification Service in production");
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
+  const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  if (process.env.NODE_ENV === "production" && (!user || !pass)) {
+    console.error("Configure SMTP credentials (GMAIL_USER and GMAIL_APP_PASSWORD, or SMTP_USER and SMTP_PASSWORD) before starting Notification Service in production");
     process.exit(1);
   }
   mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017", { dbName: process.env.MONGODB_DB || "smartcart_notification" })

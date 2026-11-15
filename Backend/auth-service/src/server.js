@@ -186,29 +186,40 @@ function requirePermission(permission) {
 }
 
 async function deliverEmail({ to, subject, text, html }) {
-  const provider = process.env.EMAIL_PROVIDER || "mock";
-  if (provider === "resend") {
-    if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) throw Object.assign(new Error("Email provider is not configured"), { statusCode: 503 });
-    const recipient = to;
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [recipient], subject, text, html }),
-      signal: AbortSignal.timeout(Number(process.env.EMAIL_TIMEOUT_MS) || 8000),
-    });
-    if (!response.ok) {
-      const errBody = await response.json().catch(() => ({}));
-      console.error("Resend API delivery error:", response.status, errBody);
-      if (response.status === 403 && process.env.NODE_ENV !== "production") {
-        console.warn(`[auth-service] Resend sandbox restriction: Could not send to ${recipient} using ${process.env.EMAIL_FROM}. To deliver to all customers, verify a custom domain at https://resend.com/domains.`);
-        return { delivered: false, preview: text, warning: errBody.message };
-      }
-      throw Object.assign(new Error(errBody.message || "Email delivery failed"), { statusCode: 503 });
-    }
-    return { delivered: true, recipient };
+  const provider = (process.env.EMAIL_PROVIDER || "smtp").toLowerCase();
+  if (provider === "mock" && process.env.NODE_ENV !== "production") {
+    return { delivered: false, preview: text };
   }
-  if (provider !== "mock" || process.env.NODE_ENV === "production") throw Object.assign(new Error("A real email provider must be configured"), { statusCode: 503 });
-  // Development-only preview; never expose token links from production.
-  return { delivered: false, preview: text };
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
+  const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[auth-service] SMTP not configured; displaying preview link in dev");
+      return { delivered: false, preview: text };
+    }
+    throw Object.assign(new Error("SMTP credentials not configured (set GMAIL_USER & GMAIL_APP_PASSWORD or SMTP_USER & SMTP_PASSWORD)"), { statusCode: 503 });
+  }
+  const nodemailer = require("nodemailer");
+  const transportOptions = process.env.SMTP_HOST
+    ? {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: { user, pass },
+      }
+    : {
+        service: "gmail",
+        auth: { user, pass },
+      };
+  const transporter = nodemailer.createTransport(transportOptions);
+  const info = await transporter.sendMail({
+    from: `"SmartCart" <${user}>`,
+    to,
+    subject,
+    text,
+    html,
+  });
+  return { delivered: true, recipient: to, messageId: info.messageId };
 }
 
 const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -768,7 +779,7 @@ app.use((error, req, res, next) => {
 });
 
 if (require.main === module) {
-  const port = Number(process.env.PORT) || 4001;
+  const port = Number(process.env.AUTH_PORT || process.env.AUTH_SERVICE_PORT) || 4001;
   if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || /change-me|replace-with|local-development/i.test(process.env.JWT_SECRET))) {
     console.error(JSON.stringify({ level: "error", service: "auth-service", message: "A strong, non-placeholder JWT_SECRET is required in production" }));
     process.exit(1);
@@ -777,8 +788,10 @@ if (require.main === module) {
     console.error(JSON.stringify({ level: "error", service: "auth-service", message: "A strong AUTH_EXCHANGE_SECRET is required in production" }));
     process.exit(1);
   }
-  if (process.env.NODE_ENV === "production" && (process.env.EMAIL_PROVIDER !== "resend" || !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) {
-    console.error(JSON.stringify({ level: "error", service: "auth-service", message: "Configure the Resend email provider before production startup" }));
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
+  const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  if (process.env.NODE_ENV === "production" && (!user || !pass)) {
+    console.error(JSON.stringify({ level: "error", service: "auth-service", message: "Configure SMTP credentials (GMAIL_USER & GMAIL_APP_PASSWORD, or SMTP_USER & SMTP_PASSWORD) before production startup" }));
     process.exit(1);
   }
   if (process.env.NODE_ENV === "production" && (!process.env.NOTIFICATION_SERVICE_SECRET || process.env.NOTIFICATION_SERVICE_SECRET.length < 32 || /change-me|replace-with|local-development/i.test(process.env.NOTIFICATION_SERVICE_SECRET))) {

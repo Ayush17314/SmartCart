@@ -1195,7 +1195,7 @@ app.use((error, req, res, next) => {
     return sendError(res, error);
 });
 
-const port = Number(process.env.PORT) || 4005;
+const port = Number(process.env.ORDER_PORT || process.env.ORDER_SERVICE_PORT) || 4005;
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017";
 
 if (process.env.NODE_ENV === "production" && (!process.env.INVENTORY_SERVICE_SECRET || process.env.INVENTORY_SERVICE_SECRET.length < 32 || /change-me|replace-with|local-development/i.test(process.env.INVENTORY_SERVICE_SECRET))) {
