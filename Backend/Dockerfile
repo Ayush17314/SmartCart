@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy root backend package configuration
-COPY package.json free-ports.js ./
+COPY package.json free-ports.js start-all.js ./
 
 # Copy microservice package files for optimal Docker layer caching
 COPY api-gateway/package*.json ./api-gateway/
