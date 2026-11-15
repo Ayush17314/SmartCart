@@ -450,7 +450,6 @@ async function sendWithSmtp(notification) {
   }
 
   // 2. SMTP Transport with Port 465 (Direct SSL), Port 2525, and Port 587 Fallback
-  const nodemailer = require("nodemailer");
   const host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
   const configuredPort = Number(process.env.SMTP_PORT) || 465;
 
