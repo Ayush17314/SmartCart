@@ -24,7 +24,7 @@ async function proxy(request: NextRequest, context: Context) {
   }
 
   const { path } = await context.params;
-  const target = `${(process.env.API_URL || "http://localhost:4000").replace(/\/$/, "")}/${path
+  const target = `${(process.env.API_URL || "https://smartcart-backend-0nnc.onrender.com").replace(/\/$/, "")}/${path
     .map(encodeURIComponent)
     .join("/")}${request.nextUrl.search}`;
 

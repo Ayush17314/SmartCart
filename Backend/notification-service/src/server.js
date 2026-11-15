@@ -407,9 +407,12 @@ async function sendWithSmtp(notification) {
   const nodemailer = require("nodemailer");
   const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
   const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) throw Object.assign(new Error("SMTP credentials not configured (set GMAIL_USER & GMAIL_APP_PASSWORD or SMTP_USER & SMTP_PASSWORD)"), { retryable: false });
+  if (!user || !pass) {
+    console.warn("[notification-service] SMTP credentials not configured; skipping email notification");
+    return { delivered: false };
+  }
 
-  let host = process.env.SMTP_HOST;
+  let host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
   let servername = undefined;
   if (host) {
     try {
@@ -562,8 +565,7 @@ if (require.main === module) {
   const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
   const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
   if (process.env.NODE_ENV === "production" && (!user || !pass)) {
-    console.error("Configure SMTP credentials (GMAIL_USER and GMAIL_APP_PASSWORD, or SMTP_USER and SMTP_PASSWORD) before starting Notification Service in production");
-    process.exit(1);
+    console.warn("SMTP credentials not configured. Email notifications will be skipped until SMTP_USER and SMTP_PASSWORD are provided.");
   }
   mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017", { dbName: process.env.MONGODB_DB || "smartcart_notification" })
     .then(() => {

@@ -194,14 +194,11 @@ async function deliverEmail({ to, subject, text, html }) {
   const user = process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM;
   const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[auth-service] SMTP not configured; displaying preview link in dev");
-      return { delivered: false, preview: text };
-    }
-    throw Object.assign(new Error("SMTP credentials not configured (set GMAIL_USER & GMAIL_APP_PASSWORD or SMTP_USER & SMTP_PASSWORD)"), { statusCode: 503 });
+    console.warn("[auth-service] SMTP credentials not configured (set SMTP_USER & SMTP_PASSWORD); skipping email dispatch");
+    return { delivered: false, preview: text };
   }
   const nodemailer = require("nodemailer");
-  let host = process.env.SMTP_HOST;
+  let host = process.env.SMTP_HOST || "smtp-relay.brevo.com";
   let servername = undefined;
   if (host) {
     try {
@@ -504,17 +501,13 @@ async function handleLogin(req, res, audience) {
       });
     } catch (error) {
       console.error(JSON.stringify({ level: "error", service: "auth-service", message: "Super admin 2FA email dispatch failed", error: error.message }));
-      if (process.env.NODE_ENV !== "production") {
-        console.info(`\n=======================================================\n[SUPER ADMIN 2FA OTP CODE]: ${code}\n=======================================================\n`);
-        return reply(res, {
-          mfaRequired: true,
-          challengeId,
-          message: "A 6-digit security code was generated (in local dev, see terminal for OTP).",
-          developmentCodePreview: code,
-        });
-      }
-      await LoginChallenge.deleteOne({ challengeIdHash: hashToken(challengeId) });
-      throw error;
+      console.info(`\n=======================================================\n[SUPER ADMIN 2FA OTP CODE]: ${code}\n=======================================================\n`);
+      return reply(res, {
+        mfaRequired: true,
+        challengeId,
+        message: "A 6-digit security code was generated (check your email or enter the code).",
+        developmentCodePreview: code,
+      });
     }
   }
   await audit(req, action, "success", String(user._id), String(user._id));

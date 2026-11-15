@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   let status = 200;
   if (token) {
     try {
-      const upstream = (process.env.API_URL || "http://localhost:4000").replace(/\/$/, "");
+      const upstream = (process.env.API_URL || "https://smartcart-backend-0nnc.onrender.com").replace(/\/$/, "");
       const response = await fetch(`${upstream}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
       if (!response.ok) status = 503;
     } catch { status = 503; }
